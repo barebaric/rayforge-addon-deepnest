@@ -1,0 +1,10 @@
+name: deepnest
+display_name: "Deepnest"
+description: "Nesting layout functionality using deepnest algorithm"
+api_version: 2
+author:
+  name: "Rayforge Team"
+  email: "noreply@rayforge.org"
+provides:
+  backend: "deepnest.backend"
+  frontend: "deepnest.frontend"
