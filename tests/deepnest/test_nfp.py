@@ -1,13 +1,11 @@
-from rayforge.builtin_addons.deepnest.deepnest.deepnest.nfp import (
+from deepnest.deepnest.nfp import (
     no_fit_polygon,
     inner_fit_polygon,
     get_placement_position,
     _nfp_inside,
     _nfp_outside,
 )
-from rayforge.builtin_addons.deepnest.deepnest.deepnest.models import (
-    NestConfig,
-)
+from deepnest.deepnest.models import NestConfig
 from rayforge.core.geo.polygon import Polygon
 
 

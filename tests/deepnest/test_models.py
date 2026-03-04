@@ -2,9 +2,7 @@
 Tests for rayforge.shared.deepnest.models module.
 """
 
-from rayforge.builtin_addons.deepnest.deepnest.deepnest.models import (
-    NestConfig,
-)
+from deepnest.deepnest.models import NestConfig
 
 
 class TestNestConfig:

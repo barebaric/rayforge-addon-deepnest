@@ -4,12 +4,12 @@ Tests for multi-sheet nesting functionality.
 
 import pytest
 
-from rayforge.builtin_addons.deepnest.deepnest.deepnest.models import (
+from deepnest.deepnest.models import (
     NestConfig,
     SheetInfo,
 )
-from rayforge.builtin_addons.deepnest.deepnest.deepnest.core import DeepNest
-from rayforge.builtin_addons.deepnest.deepnest.deepnest.placement import (
+from deepnest.deepnest.core import DeepNest
+from deepnest.deepnest.placement import (
     place_parts,
     layout_sheets_horizontal,
     get_sheet_at_position,

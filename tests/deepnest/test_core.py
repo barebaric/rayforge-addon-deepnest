@@ -3,16 +3,15 @@ Tests for rayforge.shared.deepnest.core module.
 """
 
 import pytest
-
-from rayforge.builtin_addons.deepnest.deepnest.deepnest.models import (
+from rayforge.core.geo import Geometry
+from deepnest.deepnest.models import (
     NestConfig,
     WorkpieceInfo,
 )
-from rayforge.builtin_addons.deepnest.deepnest.deepnest.core import (
+from deepnest.deepnest.core import (
     DeepNest,
     nest_geometries,
 )
-from rayforge.core.geo import Geometry
 
 
 class TestWorkpieceInfo:

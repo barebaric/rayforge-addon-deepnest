@@ -9,15 +9,17 @@ from typing import Union, List, cast
 import pytest
 import pyclipper
 
-from rayforge.builtin_addons.deepnest.deepnest.deepnest.models import (
+from deepnest.deepnest import DeepNest
+from deepnest.deepnest.models import (
     NestConfig,
     Placement,
     SheetInfo,
 )
-from rayforge.builtin_addons.deepnest.deepnest.deepnest.placement import (
+from deepnest.deepnest.placement import (
     NestResult,
     place_parts,
 )
+from rayforge.core.geo import Geometry
 from rayforge.core.geo.polygon import to_clipper, Polygon
 
 
@@ -1074,7 +1076,7 @@ class TestDeepNestIntegration:
 
     def test_deepnest_basic_no_overlap(self, config):
         """Test DeepNest class directly with basic polygons."""
-        from rayforge.builtin_addons.deepnest.deepnest.deepnest import DeepNest
+        from deepnest.deepnest import DeepNest
         from rayforge.core.geo import Geometry
 
         nester = DeepNest(config)
@@ -1660,9 +1662,6 @@ class TestNonRectangularSheet:
 
     def test_sheet_with_offset_origin(self, config):
         """Test nesting on a sheet that doesn't start at origin."""
-        from rayforge.builtin_addons.deepnest.deepnest.deepnest import DeepNest
-        from rayforge.core.geo import Geometry
-
         nester = DeepNest(config)
 
         sheet = Geometry()
@@ -1771,10 +1770,6 @@ class TestTransformApplication:
         When rotation is 0, the transform should place the polygon at the
         placement position.
         """
-        from rayforge.builtin_addons.deepnest.deepnest.deepnest.placement import (  # noqa: E501
-            place_parts,
-        )
-
         sheet = P((0, 0), (50, 0), (50, 50), (0, 50))
         parts = [
             {
@@ -1810,10 +1805,6 @@ class TestTransformApplication:
         """
         When rotation is non-zero, the transform should still match.
         """
-        from rayforge.builtin_addons.deepnest.deepnest.deepnest.placement import (  # noqa: E501
-            place_parts,
-        )
-
         sheet = P((0, 0), (50, 0), (50, 50), (0, 50))
         parts = [
             {
@@ -1850,10 +1841,6 @@ class TestTransformApplication:
         Test that after applying transforms to multiple parts with rotations,
         there are no overlaps.
         """
-        from rayforge.builtin_addons.deepnest.deepnest.deepnest.placement import (  # noqa: E501
-            place_parts,
-        )
-
         sheet = P((0, 0), (50, 0), (50, 50), (0, 50))
         parts = [
             {
@@ -1891,10 +1878,6 @@ class TestTransformApplication:
         Test geometry at non-origin position (like real workpieces
         where world geometry min might be at (60, 47) not (0, 0)).
         """
-        from rayforge.builtin_addons.deepnest.deepnest.deepnest.placement import (  # noqa: E501
-            place_parts,
-        )
-
         sheet = P((0, 0), (50, 0), (50, 50), (0, 50))
 
         parts = [
@@ -1953,10 +1936,6 @@ class TestTransformApplication:
         The geometry is already scaled (like world geometry from
         get_world_geometry()), and we need to preserve that scale.
         """
-        from rayforge.builtin_addons.deepnest.deepnest.deepnest.placement import (  # noqa: E501
-            place_parts,
-        )
-
         sheet = P((0, 0), (200, 0), (200, 200), (0, 200))
 
         scale_x, scale_y = 3.94, 7.88

@@ -1,6 +1,4 @@
-from rayforge.builtin_addons.deepnest.deepnest.deepnest.spatial_grid import (
-    SpatialGrid,
-)
+from deepnest.deepnest.spatial_grid import SpatialGrid
 
 
 class TestSpatialGrid:
