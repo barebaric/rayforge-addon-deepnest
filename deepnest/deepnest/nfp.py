@@ -8,6 +8,7 @@ all valid relative positions where B can be placed without overlapping A.
 Reference: minkowski.cc from Deepnest project
 """
 
+import logging
 from typing import List, Optional
 import pyclipper
 
@@ -16,7 +17,6 @@ from rayforge.core.geo.polygon import (
     Point,
     IntPolygon,
     polygon_bounds,
-    int_polygon_bounds,
     almost_equal,
     to_clipper,
     from_clipper,
@@ -27,25 +27,86 @@ from rayforge.core.geo.minkowski import (
 )
 from .models import NestConfig
 
+logger = logging.getLogger(__name__)
+
+
+def _nfp_minkowski(
+    static: IntPolygon, orbiting: IntPolygon, scale: int
+) -> List[Polygon]:
+    """
+    Calculate NFP using Minkowski sum based on minkowski.cc logic.
+    NFP = A + (-B), where A is static and B is orbiting.
+    This gives the boundary where B's reference point can be placed for B
+    to touch A from the outside.
+    """
+    x_shift = orbiting[0][0]
+    y_shift = orbiting[0][1]
+
+    orbiting_negated = [(-p[0], -p[1]) for p in orbiting]
+
+    subjects = []
+
+    # 1. Edge-edge convolutions (generates parallelograms)
+    parallelograms = convolve_point_sequences(static, orbiting_negated)
+    subjects.extend(parallelograms)
+
+    # 2. Shifted polygons for reference (handles cases where one polygon
+    # is contained entirely within a single feature of the other)
+    static_shifted = [
+        (p[0] + orbiting_negated[0][0], p[1] + orbiting_negated[0][1])
+        for p in static
+    ]
+    subjects.append(static_shifted)
+
+    orbiting_neg_shifted = [
+        (p[0] + static[0][0], p[1] + static[0][1]) for p in orbiting_negated
+    ]
+    subjects.append(orbiting_neg_shifted)
+
+    if not subjects:
+        return []
+
+    # 3. Perform union of all generated shapes to get the final NFP
+    clipper = pyclipper.Pyclipper()
+    for subj in subjects:
+        if len(subj) >= 3:
+            try:
+                clipper.AddPath(subj, pyclipper.PT_SUBJECT, True)
+            except Exception:
+                continue
+
+    try:
+        solution = clipper.Execute(
+            pyclipper.CT_UNION,
+            pyclipper.PFT_NONZERO,
+            pyclipper.PFT_NONZERO,
+        )
+    except Exception:
+        return []
+
+    if not solution:
+        return []
+
+    # 4. Post-process: shift result to orbiting's reference frame and
+    # scale down
+    results = []
+    for path in solution:
+        if len(path) >= 3:
+            shifted = [(p[0] + x_shift, p[1] + y_shift) for p in path]
+            result_poly = from_clipper(shifted, scale)
+
+            area = pyclipper.Area(path)
+            if area > 0:
+                results.append(result_poly)
+
+    return results
+
 
 def no_fit_polygon(
     static: Polygon, orbiting: Polygon, inside: bool, config: NestConfig
 ) -> List[Polygon]:
     """
     Calculate the No-Fit Polygon (NFP) for two polygons.
-
-    The NFP represents all valid relative positions where the orbiting
-    polygon can be placed without overlapping the static polygon.
-
-    Args:
-        static: The fixed polygon (e.g., already placed part or sheet)
-        orbiting: The polygon being placed
-        inside: If True, calculate inner fit polygon
-            (for placement inside container)
-        config: Nesting configuration
-
-    Returns:
-        List of NFP polygons
     """
     if not static or not orbiting or len(static) < 3 or len(orbiting) < 3:
         return []
@@ -59,171 +120,10 @@ def no_fit_polygon(
         if len(static_path) < 3 or len(orbiting_path) < 3:
             return []
 
-        if inside:
-            return _nfp_inside(static_path, orbiting_path, int(scale))
-        else:
-            return _nfp_outside(static_path, orbiting_path, int(scale))
+        return _nfp_minkowski(static_path, orbiting_path, int(scale))
     except Exception as e:
-        logger = __import__("logging").getLogger(__name__)
         logger.debug("NFP calculation failed: %s", e)
         return []
-
-
-def _nfp_inside(
-    static: IntPolygon,
-    orbiting: IntPolygon,
-    scale: int,
-) -> List[Polygon]:
-    """
-    Calculate Inner Fit Polygon (IFP) for placing orbiting inside static.
-    The IFP is the Minkowski difference of the container and the part.
-
-    Matches the logic in minkowski.cc for inside NFP calculation.
-    """
-    static_min_x, static_min_y, static_max_x, static_max_y = (
-        int_polygon_bounds(static)
-    )
-    orbiting_min_x, orbiting_min_y, orbiting_max_x, orbiting_max_y = (
-        int_polygon_bounds(orbiting)
-    )
-
-    static_width = static_max_x - static_min_x
-    static_height = static_max_y - static_min_y
-    orbiting_width = orbiting_max_x - orbiting_min_x
-    orbiting_height = orbiting_max_y - orbiting_min_y
-
-    if (
-        orbiting_width > static_width + 1
-        or orbiting_height > static_height + 1
-    ):
-        return []
-
-    x_shift = orbiting[0][0]
-    y_shift = orbiting[0][1]
-
-    orbiting_negated = [(-p[0], -p[1]) for p in orbiting]
-
-    subjects = []
-
-    parallelograms = convolve_point_sequences(static, orbiting_negated)
-    subjects.extend(parallelograms)
-
-    static_shifted = [
-        (p[0] + orbiting_negated[0][0], p[1] + orbiting_negated[0][1])
-        for p in static
-    ]
-    subjects.append(static_shifted)
-
-    orbiting_neg_shifted = [
-        (p[0] + static[0][0], p[1] + static[0][1]) for p in orbiting_negated
-    ]
-    subjects.append(orbiting_neg_shifted)
-
-    if not subjects:
-        return []
-
-    clipper = pyclipper.Pyclipper()
-
-    for subj in subjects:
-        if len(subj) >= 3:
-            try:
-                clipper.AddPath(subj, pyclipper.PT_SUBJECT, True)
-            except Exception:
-                continue
-
-    try:
-        solution = clipper.Execute(
-            pyclipper.CT_UNION,
-            pyclipper.PFT_NONZERO,
-            pyclipper.PFT_NONZERO,
-        )
-    except Exception:
-        return []
-
-    if not solution:
-        return []
-
-    results = []
-    for path in solution:
-        if len(path) >= 3:
-            shifted = [(p[0] + x_shift, p[1] + y_shift) for p in path]
-            result_poly = from_clipper(shifted, scale)
-            area = pyclipper.Area(path)
-            if area > 0:
-                results.append(result_poly)
-
-    return results
-
-
-def _nfp_outside(
-    static: IntPolygon, orbiting: IntPolygon, scale: int
-) -> List[Polygon]:
-    """
-    Calculate NFP for placing orbiting outside static (avoiding overlap).
-    This is used when placing subsequent parts after the first.
-
-    The NFP represents positions where the reference point of orbiting
-    CAN be placed without overlapping static. Positions INSIDE the NFP
-    are valid (no overlap), positions OUTSIDE would cause overlap or
-    separation.
-
-    This uses the Minkowski difference approach.
-    """
-    x_shift = orbiting[0][0]
-    y_shift = orbiting[0][1]
-
-    orbiting_negated = [(-p[0], -p[1]) for p in orbiting]
-
-    subjects = []
-
-    parallelograms = convolve_point_sequences(static, orbiting_negated)
-    subjects.extend(parallelograms)
-
-    static_shifted = [
-        (p[0] + orbiting_negated[0][0], p[1] + orbiting_negated[0][1])
-        for p in static
-    ]
-    subjects.append(static_shifted)
-
-    orbiting_neg_shifted = [
-        (p[0] + static[0][0], p[1] + static[0][1]) for p in orbiting_negated
-    ]
-    subjects.append(orbiting_neg_shifted)
-
-    if not subjects:
-        return []
-
-    clipper = pyclipper.Pyclipper()
-
-    for subj in subjects:
-        if len(subj) >= 3:
-            try:
-                clipper.AddPath(subj, pyclipper.PT_SUBJECT, True)
-            except Exception:
-                continue
-
-    try:
-        solution = clipper.Execute(
-            pyclipper.CT_UNION,
-            pyclipper.PFT_NONZERO,
-            pyclipper.PFT_NONZERO,
-        )
-    except Exception:
-        return []
-
-    if not solution:
-        return []
-
-    results = []
-    for path in solution:
-        if len(path) >= 3:
-            shifted = [(p[0] + x_shift, p[1] + y_shift) for p in path]
-            result_poly = from_clipper(shifted, scale)
-            area = pyclipper.Area(path)
-            if area > 0:
-                results.append(result_poly)
-
-    return results
 
 
 def inner_fit_polygon(
@@ -237,14 +137,6 @@ def inner_fit_polygon(
 
     For a rectangular case, this is simply the bin shrunk by the part's
     width and height.
-
-    Args:
-        bin_polygon: The container (sheet/stock)
-        part_polygon: The part to be placed
-        config: Nesting configuration
-
-    Returns:
-        The IFP polygon, or None if no valid placement area exists.
     """
     if not bin_polygon or len(bin_polygon) < 3:
         return None
@@ -292,15 +184,6 @@ def get_placement_position(
 ) -> Optional[Point]:
     """
     Find the best placement position within an NFP.
-
-    Args:
-        nfp: The No-Fit Polygon defining valid placement area
-        part: The part to place (for size reference)
-        position: Current position (unused, kept for API compatibility)
-        config: Nesting configuration
-
-    Returns:
-        Best placement point, or None if no valid position exists
     """
     if not nfp or len(nfp) < 3:
         return None

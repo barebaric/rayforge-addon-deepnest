@@ -2,8 +2,7 @@ from deepnest.deepnest.nfp import (
     no_fit_polygon,
     inner_fit_polygon,
     get_placement_position,
-    _nfp_inside,
-    _nfp_outside,
+    _nfp_minkowski,
 )
 from deepnest.deepnest.models import NestConfig
 from rayforge.core.geo.polygon import Polygon
@@ -213,10 +212,10 @@ class TestGetPlacementPosition:
         assert result is not None
 
 
-class TestNfpInside:
-    """Tests for _nfp_inside function."""
+class TestNfpMinkowski:
+    """Tests for _nfp_minkowski function."""
 
-    def test_basic_inside(self):
+    def test_basic(self):
         config = NestConfig()
         scale = config.clipper_scale
         from rayforge.core.geo.polygon import to_clipper
@@ -228,12 +227,12 @@ class TestNfpInside:
             [(0.0, 0.0), (20.0, 0.0), (20.0, 20.0), (0.0, 20.0)], scale
         )
 
-        result = _nfp_inside(static, orbiting, scale)
+        result = _nfp_minkowski(static, orbiting, scale)
         assert len(result) >= 1
         for nfp in result:
             assert len(nfp) >= 3
 
-    def test_part_too_large(self):
+    def test_part_larger_than_static(self):
         config = NestConfig()
         scale = config.clipper_scale
         from rayforge.core.geo.polygon import to_clipper
@@ -245,27 +244,11 @@ class TestNfpInside:
             [(0.0, 0.0), (100.0, 0.0), (100.0, 100.0), (0.0, 100.0)], scale
         )
 
-        result = _nfp_inside(static, orbiting, scale)
-        assert result == []
-
-
-class TestNfpOutside:
-    """Tests for _nfp_outside function."""
-
-    def test_basic_outside(self):
-        config = NestConfig()
-        scale = config.clipper_scale
-        from rayforge.core.geo.polygon import to_clipper
-
-        static = to_clipper(
-            [(0.0, 0.0), (50.0, 0.0), (50.0, 50.0), (0.0, 50.0)], scale
-        )
-        orbiting = to_clipper(
-            [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)], scale
-        )
-
-        result = _nfp_outside(static, orbiting, scale)
-        assert len(result) >= 0
+        result = _nfp_minkowski(static, orbiting, scale)
+        # Minkowski sum of two rectangles still results in a larger rectangle
+        assert len(result) >= 1
+        for nfp in result:
+            assert len(nfp) >= 3
 
 
 class TestNfpWithRotations:
