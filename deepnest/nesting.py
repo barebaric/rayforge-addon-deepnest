@@ -99,8 +99,13 @@ class NestingLayoutStrategy(LayoutStrategy):
 
         for wp in workpieces:
             geo = wp.get_world_geometry()
-            if geo and not geo.is_empty():
-                nester.add_geometry(geo, uid=wp.uid)
+            if geo is None:
+                logger.warning("Workpiece '%s' has no world geometry", wp.uid)
+                continue
+            if geo.is_empty():
+                logger.warning("Workpiece '%s' has empty geometry", wp.uid)
+                continue
+            nester.add_geometry(geo, uid=wp.uid)
 
         stock_polygons = self._get_stock_polygons()
         if stock_polygons:
@@ -186,8 +191,17 @@ class NestingLayoutStrategy(LayoutStrategy):
 
         for wp in workpieces:
             geo = wp.get_world_geometry()
-            if geo and not geo.is_empty():
-                nester.add_geometry(geo, uid=wp.uid)
+            if geo is None:
+                logger.warning(
+                    "Workpiece '%s' has no world geometry - source_segment=%s",
+                    wp.uid,
+                    wp.source_segment is not None,
+                )
+                continue
+            if geo.is_empty():
+                logger.warning("Workpiece '%s' has empty geometry", wp.uid)
+                continue
+            nester.add_geometry(geo, uid=wp.uid)
 
         stock_polygons = self._get_stock_polygons()
         if stock_polygons:
@@ -196,6 +210,10 @@ class NestingLayoutStrategy(LayoutStrategy):
             logger.debug("Using %d stock sheet(s)", len(stock_polygons))
         else:
             logger.debug("No stock defined; using auto-generated sheet")
+
+        if context:
+            context.set_message("Running nesting algorithm...")
+            context.set_progress(0.2)
 
         solution = await nester.async_nest(task_manager)
 

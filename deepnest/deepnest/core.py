@@ -11,6 +11,7 @@ from rayforge.core.geo.polygon import (
     Polygon,
     polygon_area,
     polygon_bounds,
+    polygon_group_bounds,
     polygon_offset,
     clean_polygon,
     convex_hull,
@@ -92,13 +93,16 @@ class DeepNest:
         is_sheet: bool = False,
     ) -> bool:
         if geometry.is_empty():
-            logger.debug("add_geometry: geometry is empty for '%s'", uid)
+            logger.warning("add_geometry: geometry is empty for '%s'", uid)
             return False
 
         polygons = geometry.to_polygons(self.config.curve_tolerance)
         if not polygons:
-            logger.debug(
-                "add_geometry: to_polygons returned empty for '%s'", uid
+            logger.warning(
+                "add_geometry: to_polygons returned empty for '%s' "
+                "(curve_tolerance=%.2f)",
+                uid,
+                self.config.curve_tolerance,
             )
             return False
 
@@ -197,8 +201,11 @@ class DeepNest:
             num_generations = 3
         elif num_parts > 20:
             num_generations = 5
+        elif num_parts > 10:
+            num_generations = 15
         else:
-            num_generations = min(10, max(3, num_parts))
+            # For simple cases, use more generations for better exploration
+            num_generations = min(30, max(10, num_parts * 2))
 
         logger.info(
             "Starting nest: %d part(s), %d generation(s)",
@@ -220,7 +227,52 @@ class DeepNest:
 
         self._ga = GeneticAlgorithm(parts, self.config)
 
-        best_solution: Optional[NestSolution] = None
+        # First, evaluate the identity placement (original positions/rotations)
+        # This ensures we at least match the starting point
+        # Only do this for smaller cases to avoid performance impact
+        if len(parts) < 50:
+            identity_rotations = [0.0] * len(parts)
+            identity_result = place_parts(
+                parts, sheets, identity_rotations, self.config
+            )
+
+            best_solution: Optional[NestSolution] = None
+            if identity_result and identity_result.fitness < float("inf"):
+                # Calculate bounding box area for identity placement
+                min_x = float("inf")
+                min_y = float("inf")
+                max_x = float("-inf")
+                max_y = float("-inf")
+                for p in identity_result.placements:
+                    px, py, pmax_x, pmax_y = polygon_group_bounds(p.polygons)
+                    min_x = min(min_x, px)
+                    min_y = min(min_y, py)
+                    max_x = max(max_x, pmax_x)
+                    max_y = max(max_y, pmax_y)
+
+                best_solution = NestSolution(
+                    placements=[
+                        {
+                            "uid": p.uid,
+                            "source": p.source,
+                            "x": p.x,
+                            "y": p.y,
+                            "rotation": p.rotation,
+                            "sheet_uid": p.sheet_uid,
+                            "polygons": p.polygons,
+                        }
+                        for p in identity_result.placements
+                    ],
+                    fitness=identity_result.fitness,
+                    area_used=identity_result.area_used,
+                )
+                logger.debug(
+                    "Identity placement fitness: %.4f",
+                    identity_result.fitness,
+                )
+        else:
+            best_solution = None
+
         generations_without_improvement = 0
 
         for generation in range(num_generations):
@@ -248,6 +300,8 @@ class DeepNest:
                 individual.processing = False
 
                 if result:
+                    # Only calculate bounding box when we have a candidate
+                    # that's potentially better than best
                     solution = NestSolution(
                         placements=[
                             {
@@ -349,8 +403,11 @@ class DeepNest:
                 num_generations = 3
             elif num_parts > 50:
                 num_generations = 5
+            elif num_parts > 10:
+                num_generations = 15
             else:
-                num_generations = min(10, max(3, num_parts))
+                # For simple cases, use more generations for better exploration
+                num_generations = min(30, max(10, num_parts * 2))
 
         sheets = [
             SheetInfo(

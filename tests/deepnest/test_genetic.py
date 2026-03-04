@@ -16,7 +16,7 @@ def P(*points):
 class TestGeneticAlgorithm:
     @pytest.fixture
     def config(self):
-        return NestConfig(population_size=5, rotations=4, mutation_rate=10)
+        return NestConfig(population_size=20, rotations=4, mutation_rate=10)
 
     @pytest.fixture
     def sample_parts(self):
@@ -24,6 +24,8 @@ class TestGeneticAlgorithm:
             {"id": 0, "source": 0, "polygon": P((0, 0), (10, 0), (5, 10))},
             {"id": 1, "source": 1, "polygon": P((0, 0), (8, 0), (4, 8))},
             {"id": 2, "source": 2, "polygon": P((0, 0), (6, 0), (3, 6))},
+            {"id": 3, "source": 3, "polygon": P((0, 0), (7, 0), (3.5, 7))},
+            {"id": 4, "source": 4, "polygon": P((0, 0), (9, 0), (4.5, 9))},
         ]
 
     def test_ga_initialization(self, config, sample_parts):

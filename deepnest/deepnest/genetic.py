@@ -18,8 +18,41 @@ class GeneticAlgorithm:
         self.config = config
         self.population: List[_Individual] = []
 
-        pop_size = config.population_size
+        # Scale population based on problem size
+        # Small problems get more individuals for better exploration
+        # Large problems use fewer to maintain performance
+        if len(adam) < 10:
+            pop_size = max(20, len(adam) * 4, config.population_size)
+        elif len(adam) < 50:
+            pop_size = max(30, len(adam) * 2, config.population_size)
+        else:
+            pop_size = max(20, min(50, len(adam) // 4), config.population_size)
 
+        # First individual: use original orientation (all zeros)
+        zero_angles = [0.0] * len(adam)
+        self.population.append(
+            _Individual(placement=adam.copy(), rotation=zero_angles)
+        )
+
+        # Second individual: use 90-degree rotations for some parts
+        alt_angles = []
+        for i in range(len(adam)):
+            angle = 90.0 if i % 2 == 0 else 0.0
+            alt_angles.append(angle)
+        self.population.append(
+            _Individual(placement=adam.copy(), rotation=alt_angles)
+        )
+
+        # Third individual: use 180-degree rotations
+        rot180_angles = []
+        for i in range(len(adam)):
+            angle = 180.0 if i % 2 == 0 else 0.0
+            rot180_angles.append(angle)
+        self.population.append(
+            _Individual(placement=adam.copy(), rotation=rot180_angles)
+        )
+
+        # Fourth individual: use random rotations for diversity
         angles = []
         for _ in adam:
             angle = random.randint(0, config.rotations - 1) * (
@@ -32,7 +65,9 @@ class GeneticAlgorithm:
         )
 
         while len(self.population) < pop_size:
-            mutant = self._mutate(self.population[0])
+            mutant = self._mutate(
+                self.population[random.randint(0, len(self.population) - 1)]
+            )
             self.population.append(mutant)
 
     def _mutate(self, individual: _Individual) -> _Individual:

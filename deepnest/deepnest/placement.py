@@ -463,7 +463,7 @@ def place_parts(
         normalized, orig_min_x, orig_min_y = normalize_polygons(rotated)
 
         part_bounds = polygon_group_bounds(normalized)
-        part_width = part_bounds[1] - part_bounds[0]
+        part_width = part_bounds[2] - part_bounds[0]
         part_height = part_bounds[3] - part_bounds[1]
 
         best_placement = None
@@ -640,8 +640,39 @@ def _calculate_fitness(
 
     fitness = 1.0 / utilization if utilization > 0 else float("inf")
 
-    height_penalty = max_y * 0.001
-    fitness += height_penalty
+    # Shape orientation penalty - penalize rotated rectangles to keep
+    # them in natural orientation. This helps prevent unnecessary
+    # 90-degree rotations of simple rectangular shapes.
+    orientation_penalty = 0.0
+    for p in placements:
+        # Check if the shape is approximately rectangular
+        if len(p.polygons) == 1:
+            poly = p.polygons[0]
+            if len(poly) == 4:
+                # Calculate width and height of the polygon
+                xs = [pt[0] for pt in poly]
+                ys = [pt[1] for pt in poly]
+                width = max(xs) - min(xs)
+                height = max(ys) - min(ys)
+
+                # If it's close to a rectangle, penalize rotation from
+                # natural orientation
+                aspect_ratio = width / height if height > 0 else 0
+                if 0.5 <= aspect_ratio <= 2.0:  # Roughly square or rectangular
+                    # Calculate how far the rotation is from 0 or 90 degrees
+                    rotation_mod = abs(p.rotation) % 90
+                    if rotation_mod > 45:
+                        rotation_mod = 90 - rotation_mod
+
+                    # Apply penalty for being away from natural orientation
+                    # Stronger penalty for larger deviations
+                    orientation_penalty += (rotation_mod / 90) * 0.1
+
+    fitness += orientation_penalty
+
+    # Remove height penalty - it can cause counterintuitive results
+    # height_penalty = max_y * 0.001
+    # fitness += height_penalty
 
     if num_parts > 0 and len(placements) < num_parts:
         missing_penalty = (num_parts - len(placements)) * 1000.0

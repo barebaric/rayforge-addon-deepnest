@@ -10,7 +10,7 @@ class NestConfig:
     spacing: float = 0.0
     rotations: int = 36
     population_size: int = 10
-    mutation_rate: int = 10
+    mutation_rate: int = 30
     placement_type: Literal["gravity", "box"] = "gravity"
     merge_lines: bool = True
     simplify: bool = False
