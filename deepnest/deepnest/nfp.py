@@ -13,6 +13,11 @@ import threading
 from typing import List, Optional, Tuple, Dict
 import pyclipper
 
+from rayforge.core.geo.minkowski import (
+    convolve_point_sequences,
+    calculate_input_scale,
+    minkowski_sum_convex,
+)
 from rayforge.core.geo.polygon import (
     Polygon,
     Point,
@@ -21,10 +26,7 @@ from rayforge.core.geo.polygon import (
     almost_equal,
     to_clipper,
     from_clipper,
-)
-from rayforge.core.geo.minkowski import (
-    convolve_point_sequences,
-    calculate_input_scale,
+    is_convex,
 )
 from .models import NestConfig
 
@@ -62,6 +64,32 @@ def _normalize_poly(poly: Polygon) -> Tuple[Polygon, float, float]:
     min_y = min(p[1] for p in poly)
     norm = [(p[0] - min_x, p[1] - min_y) for p in poly]
     return norm, min_x, min_y
+
+
+def _nfp_convex_fast(
+    static: IntPolygon, orbiting: IntPolygon, scale: int
+) -> List[Polygon]:
+    """
+    Fast NFP calculation for convex-convex polygon pairs.
+
+    Uses the simplified Minkowski sum formula for convex polygons:
+    NFP = ConvexHull(A + (-B)), which avoids the expensive union operation.
+    """
+    x_shift = orbiting[0][0]
+    y_shift = orbiting[0][1]
+
+    orbiting_negated = [(-p[0], -p[1]) for p in orbiting]
+
+    nfp_paths = minkowski_sum_convex(static, orbiting_negated)
+
+    results = []
+    for path in nfp_paths:
+        if len(path) >= 3:
+            shifted = [(p[0] + x_shift, p[1] + y_shift) for p in path]
+            result_poly = from_clipper(shifted, scale)
+            results.append(result_poly)
+
+    return results
 
 
 def _nfp_minkowski(
@@ -169,6 +197,10 @@ def no_fit_polygon(
 
             if len(static_path) < 3 or len(orbiting_path) < 3:
                 base_nfps = []
+            elif is_convex(norm_static) and is_convex(norm_orbiting):
+                base_nfps = _nfp_convex_fast(
+                    static_path, orbiting_path, int(scale)
+                )
             else:
                 base_nfps = _nfp_minkowski(
                     static_path, orbiting_path, int(scale)

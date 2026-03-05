@@ -438,7 +438,22 @@ def _find_valid_position(
 
         # 1b. Exact NFP Subtraction
         for placed_poly in placed_polys:
+            placed_bbox = polygon_bounds(placed_poly)
             for part_poly in part_polygons:
+                part_bbox = polygon_bounds(part_poly)
+                pw = part_bbox[2] - part_bbox[0]
+                ph = part_bbox[3] - part_bbox[1]
+
+                expanded_placed = (
+                    placed_bbox[0] - pw - spacing,
+                    placed_bbox[1] - ph - spacing,
+                    placed_bbox[2] + pw + spacing,
+                    placed_bbox[3] + ph + spacing,
+                )
+
+                if not bboxes_intersect(expanded_placed, ifp_bounds):
+                    continue
+
                 nfps = no_fit_polygon(placed_poly, part_poly, False, config)
                 for nfp in nfps:
                     # Shift NFP backward by the local part_poly's origin

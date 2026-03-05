@@ -51,7 +51,7 @@ class NestingLayoutStrategy(LayoutStrategy):
         self,
         items: Sequence[DocItem],
         spacing: float = 0.0,
-        rotations: int = 360,
+        rotations: int = 72,  # 5 degree increments
         population_size: int = 10,
         **kwargs,
     ):
