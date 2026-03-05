@@ -51,7 +51,7 @@ class NestingLayoutStrategy(LayoutStrategy):
         self,
         items: Sequence[DocItem],
         spacing: float = 0.0,
-        rotations: int = 36,
+        rotations: int = 360,
         population_size: int = 10,
         **kwargs,
     ):
@@ -177,9 +177,14 @@ class NestingLayoutStrategy(LayoutStrategy):
             )
             return {}
 
+        # Calculate max workers (90% of CPU cores)
         cpu_count = os.cpu_count() or 4
-        max_workers = int(cpu_count * 0.9)
-        population_size = min(max_workers, max(8, num_workpieces * 2))
+        max_workers = max(1, int(cpu_count * 0.9))
+
+        # Adjust population size to match available parallelism for large sets,
+        # ensuring we don't queue more than we can process.
+        # For 200 parts, we want efficiency over diversity.
+        population_size = min(max_workers, max(8, int(num_workpieces * 0.5)))
 
         config = NestConfig(
             spacing=self.spacing,
@@ -215,7 +220,9 @@ class NestingLayoutStrategy(LayoutStrategy):
             context.set_message("Running nesting algorithm...")
             context.set_progress(0.2)
 
-        solution = await nester.async_nest(task_manager)
+        solution = await nester.async_nest(
+            task_manager, max_parallel_tasks=max_workers
+        )
 
         if not solution:
             logger.warning("Nesting found no solution")

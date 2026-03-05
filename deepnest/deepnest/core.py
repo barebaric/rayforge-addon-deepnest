@@ -30,6 +30,7 @@ from .placement import (
     NestResult,
     place_parts,
 )
+from .nfp import clear_nfp_cache
 
 if TYPE_CHECKING:
     from rayforge.shared.tasker.manager import TaskManager
@@ -179,6 +180,8 @@ class DeepNest:
         self._cancelled = False
 
     def nest(self) -> Optional[NestSolution]:
+        clear_nfp_cache()
+
         if not self._workpieces:
             logger.warning("nest: no workpieces to nest")
             return None
@@ -379,7 +382,10 @@ class DeepNest:
         task_manager: "TaskManager",
         num_generations: Optional[int] = None,
         generations_without_improvement_limit: int = 5,
+        max_parallel_tasks: int = 4,
     ) -> Optional[NestSolution]:
+        clear_nfp_cache()
+
         if not self._workpieces:
             logger.warning("async_nest: no workpieces to nest")
             return None
@@ -420,10 +426,12 @@ class DeepNest:
         ]
 
         logger.info(
-            "Starting async nest: %d part(s), %d generation(s), pop=%d",
+            "Starting async nest: %d part(s), %d generation(s), pop=%d, "
+            "parallel=%d",
             num_parts,
             num_generations,
             self.config.population_size,
+            max_parallel_tasks,
         )
 
         ga = GeneticAlgorithm(parts, self.config)
@@ -470,12 +478,19 @@ class DeepNest:
         while state.generation < num_generations and not state.done:
             state.improved_this_generation = False
 
+            # Spawn tasks, respecting max_parallel_tasks
             for idx, ind in enumerate(ga.population):
+                with state.lock:
+                    if len(state.pending_tasks) >= max_parallel_tasks:
+                        break
+
                 if ind.fitness is None and not ind.processing:
                     ind.processing = True
                     parts_copy = copy.deepcopy(parts)
                     task_key = f"nest-eval-{state.generation}-{idx}"
-                    state.pending_tasks[task_key] = idx
+
+                    with state.lock:
+                        state.pending_tasks[task_key] = idx
 
                     task_manager.run_process(
                         _place_parts_worker,
@@ -487,12 +502,22 @@ class DeepNest:
                         when_done=on_individual_done,
                     )
 
+            # Wait briefly to let tasks complete
             await asyncio.sleep(0.05)
 
             with state.lock:
                 process_pending_results()
 
-            if not state.pending_tasks:
+                # Check if entire generation is complete
+                active_count = len(state.pending_tasks)
+
+            # If we have no active tasks and everyone is processed, move to
+            # next gen
+            all_processed = all(
+                ind.fitness is not None for ind in ga.population
+            )
+
+            if active_count == 0 and all_processed:
                 ga.generation()
 
                 if state.improved_this_generation:

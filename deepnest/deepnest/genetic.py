@@ -18,15 +18,21 @@ class GeneticAlgorithm:
         self.config = config
         self.population: List[_Individual] = []
 
-        # Scale population based on problem size
-        # Small problems get more individuals for better exploration
-        # Large problems use fewer to maintain performance
-        if len(adam) < 10:
-            pop_size = max(20, len(adam) * 4, config.population_size)
-        elif len(adam) < 50:
-            pop_size = max(30, len(adam) * 2, config.population_size)
+        # Respect the config.population_size more strictly.
+        # Ensure we have at least some diversity (min 10), but don't explode
+        # based on part count if the user/system asked for a specific limit.
+        target_pop_size = max(10, config.population_size)
+
+        # Only boost population based on part count if it doesn't exceed
+        # a reasonable ceiling (e.g. 50) to prevent performance collapse.
+        if len(adam) > 50:
+            # Large part counts need efficient generations, not massive
+            # populations
+            pop_size = min(50, target_pop_size)
         else:
-            pop_size = max(20, min(50, len(adam) // 4), config.population_size)
+            # Smaller counts can afford slightly larger populations for
+            # diversity
+            pop_size = target_pop_size
 
         # First individual: use original orientation (all zeros)
         zero_angles = [0.0] * len(adam)
