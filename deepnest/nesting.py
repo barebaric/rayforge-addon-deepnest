@@ -20,6 +20,7 @@ from rayforge.core.geo import Geometry
 from rayforge.core.group import Group
 from rayforge.core.item import DocItem
 from rayforge.core.matrix import Matrix
+from rayforge.core.stock import StockItem
 from rayforge.core.workpiece import WorkPiece
 from rayforge.machine.models.machine import Origin
 from rayforge.doceditor.layout.base import LayoutStrategy
@@ -279,34 +280,45 @@ class NestingLayoutStrategy(LayoutStrategy):
                 workpieces.extend(item.get_descendants(of_type=WorkPiece))
         return workpieces
 
+    def _get_stock_geometry(self, stock_item: StockItem) -> Optional[Geometry]:
+        """
+        Returns geometry for a stock item suitable for nesting.
+
+        Currently returns a rectangle from the world-space bbox.
+        Can be extended to return custom geometry for non-rectangular stock.
+        """
+        return stock_item.get_world_rect_geometry()
+
     def _get_stock_polygons(self) -> List[tuple[Geometry, str]]:
         """
         Returns a list of (geometry, uid) tuples for all stock items.
+
+        If the selection includes stock items, only those are used.
+        Otherwise, all stock from the document is used.
         """
+        selected_stocks = [
+            item for item in self.items if isinstance(item, StockItem)
+        ]
+
+        if selected_stocks:
+            stocks = []
+            for idx, stock_item in enumerate(selected_stocks):
+                geo = self._get_stock_geometry(stock_item)
+                if geo and not geo.is_empty():
+                    logger.debug("Using selected stock as sheet %d", idx)
+                    stocks.append((geo, f"stock-{idx}"))
+            if stocks:
+                return stocks
+
         doc = self.items[0].doc if self.items else None
         stocks = []
 
         if doc:
             for idx, stock_item in enumerate(doc.stock_items):
-                if stock_item and stock_item.bbox:
-                    x, y, w, h = stock_item.bbox
-                    if w > 0 and h > 0:
-                        geometry = Geometry()
-                        geometry.move_to(x, y)
-                        geometry.line_to(x + w, y)
-                        geometry.line_to(x + w, y + h)
-                        geometry.line_to(x, y + h)
-                        geometry.close_path()
-                        logger.debug(
-                            "Using stock bbox as sheet %d: "
-                            "(%.2f, %.2f) %.2f x %.2f",
-                            idx,
-                            x,
-                            y,
-                            w,
-                            h,
-                        )
-                        stocks.append((geometry, f"stock-{idx}"))
+                geo = self._get_stock_geometry(stock_item)
+                if geo and not geo.is_empty():
+                    logger.debug("Using stock as sheet %d", idx)
+                    stocks.append((geo, f"stock-{idx}"))
 
         if stocks:
             return stocks
