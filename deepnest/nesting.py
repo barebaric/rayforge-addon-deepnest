@@ -53,12 +53,14 @@ class NestingLayoutStrategy(LayoutStrategy):
         spacing: float = 0.0,
         rotations: int = 72,  # 5 degree increments
         population_size: int = 10,
+        simplify_tolerance: float = 0.1,
         **kwargs,
     ):
         super().__init__(items, **kwargs)
         self.spacing = spacing
         self.rotations = rotations
         self.population_size = population_size
+        self.simplify_tolerance = simplify_tolerance
         self.unplaced_items: list[DocItem] = []
 
     def calculate_deltas(
@@ -93,6 +95,7 @@ class NestingLayoutStrategy(LayoutStrategy):
             spacing=self.spacing,
             rotations=self.rotations,
             population_size=population_size,
+            simplify_tolerance=self.simplify_tolerance,
         )
 
         nester = DeepNest(config)
@@ -187,6 +190,7 @@ class NestingLayoutStrategy(LayoutStrategy):
             spacing=self.spacing,
             rotations=self.rotations,
             population_size=population_size,
+            simplify_tolerance=self.simplify_tolerance,
         )
 
         nester = DeepNest(config)

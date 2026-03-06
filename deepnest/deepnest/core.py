@@ -17,6 +17,7 @@ from rayforge.core.geo.polygon import (
     convex_hull,
     normalize_polygons,
 )
+from rayforge.core.geo.simplify import simplify_points
 from .genetic import GeneticAlgorithm
 from .models import (
     NestConfig,
@@ -63,10 +64,20 @@ def _place_parts_worker(
 
 
 def _simplify_polygon(polygon: Polygon, config: NestConfig) -> Polygon:
-    """Simplify a polygon using convex hull if configured."""
+    """Simplify a polygon using RDP or convex hull if configured."""
+
+    # 1. Adaptive Simplification (Ramer-Douglas-Peucker)
+    # Reduces vertex count on complex curves before they enter the nesting
+    # logic
+    if config.simplify_tolerance > 0:
+        polygon = simplify_points(polygon, config.simplify_tolerance)
+
+    # 2. Convex Hull Simplification (Optional / Aggressive)
     if config.simplify:
         return convex_hull(polygon)
 
+    # 3. Topology Cleaning
+    # Remove self-intersections and negligible artifacts
     tolerance = 0.01 * config.curve_tolerance
     cleaned = clean_polygon(polygon, tolerance)
     if cleaned:

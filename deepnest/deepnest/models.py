@@ -7,6 +7,7 @@ from rayforge.core.geo.polygon import Polygon
 @dataclass
 class NestConfig:
     curve_tolerance: float = 0.05
+    simplify_tolerance: float = 0.1
     spacing: float = 0.0
     rotations: int = 36
     population_size: int = 10
