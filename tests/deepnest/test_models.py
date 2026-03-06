@@ -13,7 +13,6 @@ class TestNestConfig:
         assert config.rotations == 36
         assert config.population_size == 10
         assert config.mutation_rate == 30
-        assert config.placement_type == "gravity"
 
     def test_custom_config(self):
         config = NestConfig(

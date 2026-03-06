@@ -129,7 +129,7 @@ class TestNestResult:
 class TestPlacePartsBasic:
     @pytest.fixture
     def config(self):
-        return NestConfig(placement_type="gravity", curve_tolerance=0.5)
+        return NestConfig(curve_tolerance=0.5)
 
     @pytest.fixture
     def sample_parts(self):
@@ -222,7 +222,7 @@ class TestNoOverlap:
 
     @pytest.fixture
     def config(self):
-        return NestConfig(placement_type="gravity", curve_tolerance=0.5)
+        return NestConfig(curve_tolerance=0.5)
 
     def test_two_identical_squares_no_overlap(self, config):
         """Two identical squares should not overlap."""
@@ -358,7 +358,6 @@ class TestRealWorldScenarios:
     @pytest.fixture
     def config(self):
         return NestConfig(
-            placement_type="gravity",
             curve_tolerance=0.5,
             rotations=4,
             spacing=0.5,
@@ -445,7 +444,7 @@ class TestPositionUniqueness:
 
     @pytest.fixture
     def config(self):
-        return NestConfig(placement_type="gravity", curve_tolerance=0.5)
+        return NestConfig(curve_tolerance=0.5)
 
     def test_no_duplicate_positions(self, config):
         """Parts should not be placed at identical positions."""
@@ -550,7 +549,7 @@ class TestIFPCorrectness:
 
     @pytest.fixture
     def config(self):
-        return NestConfig(placement_type="gravity", curve_tolerance=0.5)
+        return NestConfig(curve_tolerance=0.5)
 
     def test_first_part_at_origin(self, config):
         """First part should be placed at or near origin (0, 0)."""
@@ -578,7 +577,7 @@ class TestStressTests:
 
     @pytest.fixture
     def config(self):
-        return NestConfig(placement_type="gravity", curve_tolerance=0.5)
+        return NestConfig(curve_tolerance=0.5)
 
     def test_20_identical_parts_no_overlap(self, config):
         """20 identical parts should all be placed without overlap."""
@@ -742,7 +741,6 @@ class TestComplexPolygons:
     @pytest.fixture
     def config(self):
         return NestConfig(
-            placement_type="gravity",
             curve_tolerance=0.5,
             rotations=4,
             spacing=0.0,
@@ -912,7 +910,6 @@ class TestRealWorldAppScenario:
     @pytest.fixture
     def config(self):
         return NestConfig(
-            placement_type="gravity",
             curve_tolerance=0.5,
             spacing=0.0,
             rotations=4,
@@ -1071,7 +1068,6 @@ class TestDeepNestIntegration:
     @pytest.fixture
     def config(self):
         return NestConfig(
-            placement_type="gravity",
             curve_tolerance=0.5,
             spacing=0.0,
             rotations=4,
@@ -1117,7 +1113,6 @@ class TestProblematicPolygonCases:
     @pytest.fixture
     def config(self):
         return NestConfig(
-            placement_type="gravity",
             curve_tolerance=0.5,
             spacing=0.0,
             rotations=4,
@@ -1347,7 +1342,6 @@ class TestPlacementValidation:
     @pytest.fixture
     def config(self):
         return NestConfig(
-            placement_type="gravity",
             curve_tolerance=0.5,
             spacing=0.0,
         )
@@ -1500,7 +1494,6 @@ class TestGeneticAlgorithmRotations:
     @pytest.fixture
     def config(self):
         return NestConfig(
-            placement_type="gravity",
             curve_tolerance=0.5,
             spacing=0.0,
             rotations=4,
@@ -1631,7 +1624,6 @@ class TestNonRectangularSheet:
     @pytest.fixture
     def config(self):
         return NestConfig(
-            placement_type="gravity",
             curve_tolerance=0.5,
             spacing=0.0,
         )
@@ -1706,7 +1698,7 @@ class TestTransformApplication:
 
     @pytest.fixture
     def config(self):
-        return NestConfig(placement_type="gravity", curve_tolerance=0.5)
+        return NestConfig(curve_tolerance=0.5)
 
     def _rotate_polygon(self, polygon, angle_deg):
         """Rotate a polygon around the origin."""

@@ -29,6 +29,15 @@ logger = logging.getLogger(__name__)
 NumpyPolygon = np.ndarray
 
 
+def _score_position(x: float, y: float) -> float:
+    """
+    Score a candidate position for placement.
+    Lower is better. Uses gravity-style scoring (bottom-left preference)
+    which produces compact packing that minimizes overall bounding box area.
+    """
+    return y + x * 0.001
+
+
 @dataclass
 class NestResult:
     placements: List[Placement]
@@ -421,10 +430,7 @@ def _find_valid_position_fast(
     )
 
     def score_candidate(pos: Tuple[float, float]) -> float:
-        if config.placement_type == "gravity":
-            return pos[1] + pos[0] * 0.001
-        else:
-            return pos[0] + pos[1] * 0.001
+        return _score_position(pos[0], pos[1])
 
     sorted_candidates = sorted(unique_candidates, key=score_candidate)
 
@@ -660,10 +666,7 @@ def _find_valid_position(
         if not point_in_polygon_numpy((x, y), ifp_world):
             continue
 
-        if config.placement_type == "gravity":
-            score = y + x * 0.001
-        else:
-            score = x + y * 0.001
+        score = _score_position(x, y)
 
         if score >= best_score:
             continue
@@ -978,10 +981,7 @@ def place_parts(
                     rel_x = pos[0] - sheet.world_offset_x
                     rel_y = pos[1] - sheet.world_offset_y
 
-                    if config.placement_type == "gravity":
-                        score = rel_y + rel_x * 0.001
-                    else:
-                        score = rel_x + rel_y * 0.001
+                    score = _score_position(rel_x, rel_y)
 
                     if score < best_score_for_sheet:
                         best_score_for_sheet = score

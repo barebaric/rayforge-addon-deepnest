@@ -32,7 +32,7 @@ class TestAddSheetMethod:
 
     @pytest.fixture
     def nester(self):
-        return DeepNest(NestConfig(placement_type="gravity"))
+        return DeepNest(NestConfig())
 
     def test_add_sheet_basic(self, nester):
         """add_sheet should add a sheet polygon."""
@@ -178,7 +178,7 @@ class TestSingleSheetBackwardCompat:
 
     @pytest.fixture
     def config(self):
-        return NestConfig(placement_type="gravity", curve_tolerance=0.5)
+        return NestConfig(curve_tolerance=0.5)
 
     def test_single_sheet_works_like_before(self, config):
         """Single sheet should work the same as before."""
@@ -208,7 +208,7 @@ class TestMultiSheetPlacement:
 
     @pytest.fixture
     def config(self):
-        return NestConfig(placement_type="gravity", curve_tolerance=0.5)
+        return NestConfig(curve_tolerance=0.5)
 
     def test_parts_on_multiple_sheets(self, config):
         """Parts should be placed across multiple sheets."""
