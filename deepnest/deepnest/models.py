@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Literal, Optional
 
-from rayforge.core.geo.polygon import Polygon
+import numpy as np
 
 
 @dataclass
@@ -25,14 +25,14 @@ class NestConfig:
 @dataclass
 class WorkpieceInfo:
     uid: str
-    polygons: List[Polygon]
+    polygons: List[np.ndarray]
     source: int
     quantity: int = 1
     is_sheet: bool = False
     offset_x: float = 0.0
     offset_y: float = 0.0
     # Pre-computed convex hulls for hierarchical collision detection
-    hulls: List[Polygon] = field(default_factory=list)
+    hulls: List[np.ndarray] = field(default_factory=list)
 
 
 @dataclass
@@ -40,7 +40,7 @@ class SheetInfo:
     """Represents a single sheet in unified world space."""
 
     uid: str
-    polygon: Polygon
+    polygon: np.ndarray
     world_offset_x: float = 0.0
     world_offset_y: float = 0.0
 
@@ -53,10 +53,10 @@ class Placement:
     x: float
     y: float
     rotation: float
-    polygons: List[Polygon]
+    polygons: List[np.ndarray]
     sheet_uid: Optional[str] = None
     # Rotated convex hulls corresponding to the polygons
-    hulls: List[Polygon] = field(default_factory=list)
+    hulls: List[np.ndarray] = field(default_factory=list)
 
 
 @dataclass

@@ -3,6 +3,7 @@ Tests for rayforge.shared.deepnest.core module.
 """
 
 import pytest
+import numpy as np
 from rayforge.core.geo import Geometry
 from deepnest.deepnest.models import (
     NestConfig,
@@ -15,7 +16,7 @@ class TestWorkpieceInfo:
     def test_default(self):
         info = WorkpieceInfo(
             uid="test",
-            polygons=[[(0.0, 0.0), (10.0, 0.0), (5.0, 10.0)]],
+            polygons=[np.array([(0.0, 0.0), (10.0, 0.0), (5.0, 10.0)])],
             source=0,
         )
         assert info.uid == "test"

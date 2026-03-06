@@ -8,6 +8,7 @@ from typing import Union, List, cast
 
 import pytest
 import pyclipper
+import numpy as np
 
 from deepnest.deepnest import DeepNest
 from deepnest.deepnest.models import (
@@ -20,20 +21,20 @@ from deepnest.deepnest.placement import (
     place_parts,
 )
 from rayforge.core.geo import Geometry
-from rayforge.core.geo.polygon import to_clipper, Polygon
+from rayforge.core.geo.polygon import to_clipper_numpy
 
 
 def P(*points):
     """Helper to create a polygon from integer points."""
-    return [(float(x), float(y)) for x, y in points]
+    return np.array([(float(x), float(y)) for x, y in points])
 
 
-def SI(polygon: Polygon, uid: str = "sheet") -> SheetInfo:
+def SI(polygon: np.ndarray, uid: str = "sheet") -> SheetInfo:
     """Helper to create a SheetInfo from a polygon."""
     return SheetInfo(uid=uid, polygon=polygon)
 
 
-def make_sheets(*polygons: Polygon) -> List[SheetInfo]:
+def make_sheets(*polygons: np.ndarray) -> List[SheetInfo]:
     """Helper to create a list of SheetInfo from polygons."""
     return [
         SheetInfo(uid=f"sheet-{i}", polygon=p) for i, p in enumerate(polygons)
@@ -41,25 +42,27 @@ def make_sheets(*polygons: Polygon) -> List[SheetInfo]:
 
 
 def as_sheets(
-    sheets_like: Union[SheetInfo, List[SheetInfo], List[Polygon], Polygon],
+    sheets_like: Union[
+        SheetInfo, List[SheetInfo], List[np.ndarray], np.ndarray
+    ],
 ) -> List[SheetInfo]:
     """Convert a polygon or list of polygons to SheetInfo list."""
     if isinstance(sheets_like, SheetInfo):
         return [sheets_like]
+    if isinstance(sheets_like, np.ndarray):
+        return [SheetInfo(uid="sheet-0", polygon=sheets_like)]
     if isinstance(sheets_like, list):
         if len(sheets_like) == 0:
             return []
         first = sheets_like[0]
         if isinstance(first, SheetInfo):
             return cast(List[SheetInfo], sheets_like)
-        if isinstance(first, tuple):
-            single_poly = cast(Polygon, sheets_like)
-            return [SheetInfo(uid="sheet-0", polygon=single_poly)]
-        polygons = cast(List[Polygon], sheets_like)
-        return [
-            SheetInfo(uid=f"sheet-{i}", polygon=s)
-            for i, s in enumerate(polygons)
-        ]
+        if isinstance(first, np.ndarray):
+            polygons = cast(List[np.ndarray], sheets_like)
+            return [
+                SheetInfo(uid=f"sheet-{i}", polygon=s)
+                for i, s in enumerate(polygons)
+            ]
     raise TypeError(f"Unexpected type: {type(sheets_like)}")
 
 
@@ -70,8 +73,8 @@ def polygons_intersect(poly1, poly2, min_overlap=0.1):
     """
     scale = 10000000
     try:
-        c1 = to_clipper(poly1, scale)
-        c2 = to_clipper(poly2, scale)
+        c1 = to_clipper_numpy(np.array(poly1), scale)
+        c2 = to_clipper_numpy(np.array(poly2), scale)
 
         clipper = pyclipper.Pyclipper()
         clipper.AddPath(c1, pyclipper.PT_SUBJECT, True)

@@ -4,12 +4,13 @@ import math
 import threading
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
+import numpy as np
 
 from rayforge.core.geo import Geometry
 from rayforge.core.geo.polygon import (
     Polygon,
-    polygon_area,
-    polygon_bounds,
+    polygon_area_numpy,
+    polygon_bounds_numpy,
     polygon_offset,
     clean_polygon,
     convex_hull,
@@ -131,12 +132,15 @@ class DeepNest:
 
         processed, offset_x, offset_y = normalize_polygons(processed)
 
+        # Convert to numpy arrays for the models
+        processed_np = [np.array(p) for p in processed]
+
         # Pre-calculate convex hulls for hierarchical collision detection
-        hulls = [convex_hull(p) for p in processed]
+        hulls = [np.array(convex_hull(p)) for p in processed]
 
         info = WorkpieceInfo(
             uid=uid or f"geo_{len(self._workpieces) + len(self._sheets)}",
-            polygons=processed,
+            polygons=processed_np,
             source=len(self._workpieces) + len(self._sheets),
             quantity=quantity,
             is_sheet=is_sheet,
@@ -158,17 +162,22 @@ class DeepNest:
         )
         return True
 
-    def add_sheet(self, polygon: Polygon, uid: str = "") -> bool:
+    def add_sheet(self, polygon: np.ndarray, uid: str = "") -> bool:
         """Add a sheet polygon directly.
 
         Args:
-            polygon: The sheet boundary polygon
+            polygon: The sheet boundary polygon as numpy array
             uid: Optional identifier for the sheet
 
         Returns:
             True if the sheet was added successfully
         """
         geometry = Geometry()
+
+        # Handle numpy array input
+        if isinstance(polygon, np.ndarray):
+            polygon = polygon.tolist()
+
         if not polygon or len(polygon) < 3:
             logger.warning("add_sheet: invalid polygon")
             return False
@@ -231,7 +240,7 @@ class DeepNest:
         sheets = [
             SheetInfo(
                 uid=s.uid,
-                polygon=s.polygons[0] if s.polygons else [],
+                polygon=s.polygons[0] if len(s.polygons) > 0 else np.array([]),
                 world_offset_x=s.offset_x,
                 world_offset_y=s.offset_y,
             )
@@ -427,7 +436,7 @@ class DeepNest:
         sheets = [
             SheetInfo(
                 uid=s.uid,
-                polygon=s.polygons[0] if s.polygons else [],
+                polygon=s.polygons[0] if len(s.polygons) > 0 else np.array([]),
                 world_offset_x=s.offset_x,
                 world_offset_y=s.offset_y,
             )
@@ -624,7 +633,9 @@ class DeepNest:
 
         for wp in self._workpieces:
             for q in range(wp.quantity):
-                total_area = sum(abs(polygon_area(p)) for p in wp.polygons)
+                total_area = sum(
+                    abs(polygon_area_numpy(p)) for p in wp.polygons
+                )
 
                 parts.append(
                     {
@@ -650,8 +661,8 @@ class DeepNest:
         total_area = 0.0
         for wp in self._workpieces:
             for poly in wp.polygons:
-                all_bounds.append(polygon_bounds(poly))
-                total_area += abs(polygon_area(poly))
+                all_bounds.append(polygon_bounds_numpy(poly))
+                total_area += abs(polygon_area_numpy(poly))
 
         if not all_bounds:
             return None
@@ -670,12 +681,14 @@ class DeepNest:
         sheet_width = max(parts_width + 10, estimated_width)
         sheet_height = max(parts_height + 10, estimated_height)
 
-        sheet_polygon = [
-            (0, 0),
-            (sheet_width, 0),
-            (sheet_width, sheet_height),
-            (0, sheet_height),
-        ]
+        sheet_polygon = np.array(
+            [
+                [0, 0],
+                [sheet_width, 0],
+                [sheet_width, sheet_height],
+                [0, sheet_height],
+            ]
+        )
 
         logger.debug(
             "Created default sheet: size=%.2f x %.2f, parts_area=%.2f",
@@ -690,5 +703,5 @@ class DeepNest:
             source=-1,
             quantity=1,
             is_sheet=True,
-            hulls=[convex_hull(sheet_polygon)],
+            hulls=[np.array(convex_hull(sheet_polygon.tolist()))],
         )

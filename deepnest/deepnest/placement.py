@@ -3,20 +3,20 @@ from typing import List, Dict, Any, Optional, Tuple, Set
 from dataclasses import dataclass
 import pyclipper
 import math
+import numpy as np
 
 from rayforge.core.geo import Rect
 from rayforge.core.geo.polygon import (
-    Polygon,
-    point_in_polygon,
-    polygon_area,
-    polygon_bounds,
-    polygon_group_bounds,
-    polygons_intersect,
-    rotate_polygons,
-    translate_polygons,
-    to_clipper,
+    point_in_polygon_numpy,
+    polygon_area_numpy,
+    polygon_bounds_numpy,
+    polygon_group_bounds_numpy,
+    polygons_intersect_numpy,
+    rotate_polygons_numpy,
+    translate_polygons_numpy,
+    to_clipper_numpy,
     from_clipper,
-    normalize_polygons,
+    normalize_polygons_numpy,
     polygon_offset,
 )
 from rayforge.core.geo.query import bboxes_intersect
@@ -25,6 +25,8 @@ from .nfp import inner_fit_polygon, no_fit_polygon
 from .spatial_grid import SpatialGrid
 
 logger = logging.getLogger(__name__)
+
+NumpyPolygon = np.ndarray
 
 
 @dataclass
@@ -54,7 +56,7 @@ def layout_sheets_horizontal(
 
     x_offset = 0.0
     for sheet in sheets:
-        bounds = polygon_bounds(sheet.polygon)
+        bounds = polygon_bounds_numpy(sheet.polygon)
         width = bounds[2] - bounds[0]
         sheet.world_offset_x = x_offset
         x_offset += width + spacing
@@ -68,24 +70,24 @@ def get_sheet_at_position(
 ) -> Optional[SheetInfo]:
     """Find which sheet contains the given position."""
     for sheet in sheets:
-        poly_at_offset = translate_polygons(
+        poly_at_offset = translate_polygons_numpy(
             [sheet.polygon], sheet.world_offset_x, sheet.world_offset_y
         )[0]
-        if point_in_polygon((x, y), poly_at_offset):
+        if point_in_polygon_numpy((x, y), poly_at_offset):
             return sheet
     return None
 
 
 def _any_overlap(
-    candidate_polys: List[Polygon],
-    placed_polys_list: List[List[Polygon]],
+    candidate_polys: List[NumpyPolygon],
+    placed_polys_list: List[List[NumpyPolygon]],
     spatial_grid: Optional[SpatialGrid] = None,
     candidate_bbox: Optional[Rect] = None,
-    candidate_hulls: Optional[List[Polygon]] = None,
-    placed_hulls_list: Optional[List[List[Polygon]]] = None,
+    candidate_hulls: Optional[List[NumpyPolygon]] = None,
+    placed_hulls_list: Optional[List[List[NumpyPolygon]]] = None,
 ) -> bool:
     """Check if candidate polygons overlap with any placed polygons."""
-    cand_bbox = candidate_bbox or polygon_group_bounds(candidate_polys)
+    cand_bbox = candidate_bbox or polygon_group_bounds_numpy(candidate_polys)
 
     # Use spatial grid to limit checks if available
     indices_to_check = range(len(placed_polys_list))
@@ -98,7 +100,7 @@ def _any_overlap(
 
     for idx in indices_to_check:
         placed_polys = placed_polys_list[idx]
-        placed_bbox = polygon_group_bounds(placed_polys)
+        placed_bbox = polygon_group_bounds_numpy(placed_polys)
 
         # 1. Bounding Box Check (Fastest)
         if not bboxes_intersect(cand_bbox, placed_bbox):
@@ -113,7 +115,7 @@ def _any_overlap(
             hulls_intersect = False
             for cand_hull in candidate_hulls:
                 for placed_hull in placed_hulls:
-                    if polygons_intersect(cand_hull, placed_hull):
+                    if polygons_intersect_numpy(cand_hull, placed_hull):
                         hulls_intersect = True
                         break
                 if hulls_intersect:
@@ -125,13 +127,15 @@ def _any_overlap(
         # 3. Detailed Polygon Check (Slowest)
         for cand_poly in candidate_polys:
             for placed_poly in placed_polys:
-                if polygons_intersect(cand_poly, placed_poly, min_area=10):
+                if polygons_intersect_numpy(
+                    cand_poly, placed_poly, min_area=10
+                ):
                     return True
     return False
 
 
 def _is_contained(
-    inner_polys: List[Polygon], outer_poly: Polygon, scale: int
+    inner_polys: List[NumpyPolygon], outer_poly: NumpyPolygon, scale: int
 ) -> bool:
     """
     Check if inner_polys are strictly contained within outer_poly using
@@ -141,11 +145,15 @@ def _is_contained(
     try:
         clipper = pyclipper.Pyclipper()
         # Add outer as CLIP (to subtract it)
-        clipper.AddPath(to_clipper(outer_poly, scale), pyclipper.PT_CLIP, True)
+        clipper.AddPath(
+            to_clipper_numpy(outer_poly, scale), pyclipper.PT_CLIP, True
+        )
 
         # Add inners as SUBJECT
         for p in inner_polys:
-            clipper.AddPath(to_clipper(p, scale), pyclipper.PT_SUBJECT, True)
+            clipper.AddPath(
+                to_clipper_numpy(p, scale), pyclipper.PT_SUBJECT, True
+            )
 
         # Execute Difference: Subject - Clip
         result = clipper.Execute(
@@ -166,10 +174,10 @@ def _is_contained(
 
 
 def _get_combined_ifp(
-    sheet: Polygon,
-    part_polygons: List[Polygon],
+    sheet: NumpyPolygon,
+    part_polygons: List[NumpyPolygon],
     config: NestConfig,
-) -> List[Polygon]:
+) -> List[NumpyPolygon]:
     """Get the combined IFP for all polygons in a part using intersection."""
     if not part_polygons:
         return []
@@ -178,24 +186,30 @@ def _get_combined_ifp(
     scale = config.clipper_scale
 
     for poly in part_polygons:
-        ifps = inner_fit_polygon(sheet, poly, config)
+        # inner_fit_polygon expects Python Polygon types
+        poly_py = poly.tolist()
+        sheet_py = sheet.tolist()
+        ifps = inner_fit_polygon(sheet_py, poly_py, config)
         if not ifps:
             return []
 
+        # Convert results to numpy arrays
+        ifps_numpy = [np.array(ifp) for ifp in ifps]
+
         if not combined_ifps:
-            combined_ifps = ifps
+            combined_ifps = ifps_numpy
         else:
             try:
                 clipper = pyclipper.Pyclipper()
                 for c_ifp in combined_ifps:
                     clipper.AddPath(
-                        to_clipper(c_ifp, scale),
+                        to_clipper_numpy(c_ifp, scale),
                         pyclipper.PT_SUBJECT,
                         True,
                     )
-                for ifp in ifps:
+                for ifp in ifps_numpy:
                     clipper.AddPath(
-                        to_clipper(ifp, scale),
+                        to_clipper_numpy(ifp, scale),
                         pyclipper.PT_CLIP,
                         True,
                     )
@@ -205,7 +219,9 @@ def _get_combined_ifp(
                     pyclipper.PFT_NONZERO,
                 )
                 if result:
-                    combined_ifps = [from_clipper(p, scale) for p in result]
+                    combined_ifps = [
+                        np.array(from_clipper(p, scale)) for p in result
+                    ]
                 else:
                     return []
             except Exception:
@@ -215,7 +231,7 @@ def _get_combined_ifp(
 
 
 def _generate_perimeter_candidates(
-    placed_polys_list: List[List[Polygon]],
+    placed_polys_list: List[List[NumpyPolygon]],
     part_bounds: Tuple[float, float, float, float],
     spacing: float,
     ifp_bounds: Tuple[float, float, float, float],
@@ -228,7 +244,7 @@ def _generate_perimeter_candidates(
     candidates = []
 
     for placed_polys in placed_polys_list:
-        p_bounds = polygon_group_bounds(placed_polys)
+        p_bounds = polygon_group_bounds_numpy(placed_polys)
 
         left_x = p_bounds[0] - part_bounds[2] - spacing
         right_x = p_bounds[2] - part_bounds[0] + spacing
@@ -246,15 +262,19 @@ def _generate_perimeter_candidates(
 
         for placed_poly in placed_polys:
             for px, py in placed_poly:
-                cand_x = px - part_bounds[2] - spacing
-                cand_y = py - part_bounds[3] - spacing
+                cand_x = float(px) - part_bounds[2] - spacing
+                cand_y = float(py) - part_bounds[3] - spacing
                 candidates.append((cand_x, cand_y))
-                candidates.append((px - part_bounds[0] + spacing, cand_y))
-                candidates.append((cand_x, py - part_bounds[1] + spacing))
+                candidates.append(
+                    (float(px) - part_bounds[0] + spacing, cand_y)
+                )
+                candidates.append(
+                    (cand_x, float(py) - part_bounds[1] + spacing)
+                )
                 candidates.append(
                     (
-                        px - part_bounds[0] + spacing,
-                        py - part_bounds[1] + spacing,
+                        float(px) - part_bounds[0] + spacing,
+                        float(py) - part_bounds[1] + spacing,
                     )
                 )
 
@@ -334,35 +354,36 @@ def _filter_candidates_multi_resolution(
 
 
 def _find_valid_position_fast(
-    ifp: Polygon,
-    part_polygons: List[Polygon],
-    placed_polys_list: List[List[Polygon]],
+    ifp: NumpyPolygon,
+    part_polygons: List[NumpyPolygon],
+    placed_polys_list: List[List[NumpyPolygon]],
     config: NestConfig,
     spacing: float = 0.1,
     spatial_grid: Optional[SpatialGrid] = None,
     sheet_world_offset: Tuple[float, float] = (0.0, 0.0),
-    part_hulls: Optional[List[Polygon]] = None,
-    placed_hulls_list: Optional[List[List[Polygon]]] = None,
+    part_hulls: Optional[List[NumpyPolygon]] = None,
+    placed_hulls_list: Optional[List[List[NumpyPolygon]]] = None,
 ) -> Optional[Tuple[float, float]]:
     """
     Fast placement using bottom-left and perimeter-based heuristics.
     Avoids expensive NFP subtraction by testing candidate positions directly.
     """
-    if not ifp or len(ifp) < 3:
+    if ifp.size < 3:
         return None
 
     offset_x, offset_y = sheet_world_offset
-    ifp_world = translate_polygons([ifp], offset_x, offset_y)[0]
+    ifp_world = translate_polygons_numpy([ifp], offset_x, offset_y)[0]
 
-    ifp_bounds = polygon_bounds(ifp_world)
-    part_bounds = polygon_group_bounds(part_polygons)
+    ifp_bounds = polygon_bounds_numpy(ifp_world)
+    part_bounds = polygon_group_bounds_numpy(part_polygons)
 
     pw = part_bounds[2] - part_bounds[0]
     ph = part_bounds[3] - part_bounds[1]
 
     candidates = []
 
-    candidates.extend(ifp_world)
+    # Convert numpy array to list of tuples for iteration
+    candidates.extend([(float(p[0]), float(p[1])) for p in ifp_world])
 
     candidates.extend(
         _generate_bottom_left_candidates(ifp_bounds, part_bounds, spacing)
@@ -411,19 +432,19 @@ def _find_valid_position_fast(
     best_pos = None
 
     for x, y in sorted_candidates:
-        if not point_in_polygon((x, y), ifp_world):
+        if not point_in_polygon_numpy((x, y), ifp_world):
             continue
 
         score = score_candidate((x, y))
         if score >= best_score:
             continue
 
-        test_polys = translate_polygons(part_polygons, x, y)
+        test_polys = translate_polygons_numpy(part_polygons, x, y)
 
         # Prepare hulls for check if available
         test_hulls = None
         if part_hulls:
-            test_hulls = translate_polygons(part_hulls, x, y)
+            test_hulls = translate_polygons_numpy(part_hulls, x, y)
 
         cand_bbox_test = (
             x + part_bounds[0],
@@ -450,15 +471,15 @@ def _find_valid_position_fast(
 
 
 def _find_valid_position(
-    ifp: Polygon,
-    part_polygons: List[Polygon],
-    placed_polys_list: List[List[Polygon]],
+    ifp: NumpyPolygon,
+    part_polygons: List[NumpyPolygon],
+    placed_polys_list: List[List[NumpyPolygon]],
     config: NestConfig,
     spacing: float = 0.1,
     spatial_grid: Optional[SpatialGrid] = None,
     sheet_world_offset: Tuple[float, float] = (0.0, 0.0),
-    part_hulls: Optional[List[Polygon]] = None,
-    placed_hulls_list: Optional[List[List[Polygon]]] = None,
+    part_hulls: Optional[List[NumpyPolygon]] = None,
+    placed_hulls_list: Optional[List[List[NumpyPolygon]]] = None,
 ) -> Optional[Tuple[float, float]]:
     """
     Find a valid position in the IFP where part doesn't overlap placed parts.
@@ -479,14 +500,14 @@ def _find_valid_position(
     if result is not None:
         return result
 
-    if not ifp or len(ifp) < 3:
+    if ifp.size < 3:
         return None
 
     offset_x, offset_y = sheet_world_offset
-    ifp_world = translate_polygons([ifp], offset_x, offset_y)[0]
+    ifp_world = translate_polygons_numpy([ifp], offset_x, offset_y)[0]
 
-    ifp_bounds = polygon_bounds(ifp_world)
-    part_bounds = polygon_group_bounds(part_polygons)
+    ifp_bounds = polygon_bounds_numpy(ifp_world)
+    part_bounds = polygon_group_bounds_numpy(part_polygons)
 
     # Dimensions of the part
     pw = part_bounds[2] - part_bounds[0]
@@ -513,13 +534,15 @@ def _find_valid_position(
 
     scale = config.clipper_scale
     clipper = pyclipper.Pyclipper()
-    clipper.AddPath(to_clipper(ifp_world, scale), pyclipper.PT_SUBJECT, True)
+    clipper.AddPath(
+        to_clipper_numpy(ifp_world, scale), pyclipper.PT_SUBJECT, True
+    )
 
     has_clips = False
 
     # 1. Gather NFPs from all placed items to subtract from IFP
     for placed_polys in parts_to_sample:
-        p_bounds = polygon_group_bounds(placed_polys)
+        p_bounds = polygon_group_bounds_numpy(placed_polys)
 
         # 1a. Fallback Bounding Box NFP Candidates
         # Extremely fast and highly optimal corners for axis-aligned
@@ -540,36 +563,44 @@ def _find_valid_position(
 
         # 1b. Exact NFP Subtraction
         for placed_poly in placed_polys:
-            placed_bbox = polygon_bounds(placed_poly)
+            placed_bbox = polygon_bounds_numpy(placed_poly)
             for part_poly in part_polygons:
-                part_bbox = polygon_bounds(part_poly)
-                pw = part_bbox[2] - part_bbox[0]
-                ph = part_bbox[3] - part_bbox[1]
+                part_bbox = polygon_bounds_numpy(part_poly)
+                pw_local = part_bbox[2] - part_bbox[0]
+                ph_local = part_bbox[3] - part_bbox[1]
 
                 expanded_placed = (
-                    placed_bbox[0] - pw - spacing,
-                    placed_bbox[1] - ph - spacing,
-                    placed_bbox[2] + pw + spacing,
-                    placed_bbox[3] + ph + spacing,
+                    placed_bbox[0] - pw_local - spacing,
+                    placed_bbox[1] - ph_local - spacing,
+                    placed_bbox[2] + pw_local + spacing,
+                    placed_bbox[3] + ph_local + spacing,
                 )
 
                 if not bboxes_intersect(expanded_placed, ifp_bounds):
                     continue
 
-                nfps = no_fit_polygon(placed_poly, part_poly, False, config)
+                # no_fit_polygon expects Python Polygon types
+                placed_poly_py = placed_poly.tolist()
+                part_poly_py = part_poly.tolist()
+                nfps = no_fit_polygon(
+                    placed_poly_py, part_poly_py, False, config
+                )
                 for nfp in nfps:
                     # Shift NFP backward by the local part_poly's origin
                     # so the region corresponds to the part's (0,0)
                     # placement locus.
                     ox, oy = part_poly[0]
-                    nfp_origin = [(px - ox, py - oy) for px, py in nfp]
+                    nfp_origin = [
+                        (float(px) - float(ox), float(py) - float(oy))
+                        for px, py in nfp
+                    ]
 
                     if spacing > 0:
                         expanded = polygon_offset(nfp_origin, spacing)
                         for exp_nfp in expanded:
                             try:
                                 clipper.AddPath(
-                                    to_clipper(exp_nfp, scale),
+                                    to_clipper_numpy(np.array(exp_nfp), scale),
                                     pyclipper.PT_CLIP,
                                     True,
                                 )
@@ -579,7 +610,7 @@ def _find_valid_position(
                     else:
                         try:
                             clipper.AddPath(
-                                to_clipper(nfp_origin, scale),
+                                to_clipper_numpy(np.array(nfp_origin), scale),
                                 pyclipper.PT_CLIP,
                                 True,
                             )
@@ -603,16 +634,16 @@ def _find_valid_position(
                 "Clipper difference failed in NFP valid region generation: %s",
                 e,
             )
-            valid_regions = [ifp_world]
+            valid_regions = [ifp_world.tolist()]
     else:
-        valid_regions = [ifp_world]
+        valid_regions = [ifp_world.tolist()]
 
     # 3. Harvest candidates exclusively from vertices (Optimal points)
     for region in valid_regions:
         candidates.extend(region)
 
     # Make sure IFP corner vertices are included in case NFP boolean failed
-    candidates.extend(ifp_world)
+    candidates.extend([(float(p[0]), float(p[1])) for p in ifp_world])
 
     # Multi-Resolution Filter
     min_dist = max(0.1, config.curve_tolerance * 2)
@@ -626,7 +657,7 @@ def _find_valid_position(
     # 4. Evaluate only the highly-probable candidate points
     for x, y in unique_candidates:
         # Guarantee point is inside the IFP strictly
-        if not point_in_polygon((x, y), ifp_world):
+        if not point_in_polygon_numpy((x, y), ifp_world):
             continue
 
         if config.placement_type == "gravity":
@@ -637,11 +668,11 @@ def _find_valid_position(
         if score >= best_score:
             continue
 
-        test_polys = translate_polygons(part_polygons, x, y)
+        test_polys = translate_polygons_numpy(part_polygons, x, y)
 
         test_hulls = None
         if part_hulls:
-            test_hulls = translate_polygons(part_hulls, x, y)
+            test_hulls = translate_polygons_numpy(part_hulls, x, y)
 
         cand_bbox_test = (
             x + part_bounds[0],
@@ -670,7 +701,7 @@ def _find_valid_position(
 
 def _apply_gravity(
     placements: List[Placement],
-    sheet_poly: Polygon,
+    sheet_poly: NumpyPolygon,
     spacing: float,
     clipper_scale: int,
 ) -> List[Placement]:
@@ -682,7 +713,7 @@ def _apply_gravity(
     if len(placements) < 2:
         return placements
 
-    sheet_bounds = polygon_bounds(sheet_poly)
+    sheet_bounds = polygon_bounds_numpy(sheet_poly)
 
     # Pre-build list of lists for collision checking
     # Note: gravity slide doesn't use the hull optimization currently
@@ -694,7 +725,7 @@ def _apply_gravity(
 
         sorted_by_y = sorted(
             enumerate(placements),
-            key=lambda x: polygon_group_bounds(x[1].polygons)[1],
+            key=lambda x: polygon_group_bounds_numpy(x[1].polygons)[1],
         )
 
         for i, placement in sorted_by_y:
@@ -713,18 +744,18 @@ def _apply_gravity(
             )
             if dy > 0.01:
                 placement.y -= dy
-                placement.polygons = translate_polygons(
+                placement.polygons = translate_polygons_numpy(
                     placement.polygons, 0, -dy
                 )
                 if placement.hulls:
-                    placement.hulls = translate_polygons(
+                    placement.hulls = translate_polygons_numpy(
                         placement.hulls, 0, -dy
                     )
                 any_moved = True
 
         sorted_by_x = sorted(
             enumerate(placements),
-            key=lambda x: polygon_group_bounds(x[1].polygons)[0],
+            key=lambda x: polygon_group_bounds_numpy(x[1].polygons)[0],
         )
 
         for i, placement in sorted_by_x:
@@ -743,11 +774,11 @@ def _apply_gravity(
             )
             if dx > 0.01:
                 placement.x -= dx
-                placement.polygons = translate_polygons(
+                placement.polygons = translate_polygons_numpy(
                     placement.polygons, -dx, 0
                 )
                 if placement.hulls:
-                    placement.hulls = translate_polygons(
+                    placement.hulls = translate_polygons_numpy(
                         placement.hulls, -dx, 0
                     )
                 any_moved = True
@@ -759,10 +790,10 @@ def _apply_gravity(
 
 
 def _find_max_slide(
-    polys: List[Polygon],
-    other_polys_list: List[List[Polygon]],
+    polys: List[NumpyPolygon],
+    other_polys_list: List[List[NumpyPolygon]],
     sheet_bounds: Rect,
-    sheet_poly: Polygon,
+    sheet_poly: NumpyPolygon,
     axis: str,
     spacing: float,
     scale: int,
@@ -774,7 +805,7 @@ def _find_max_slide(
     """
     sheet_min_x, sheet_min_y, sheet_max_x, sheet_max_y = sheet_bounds
 
-    bounds = polygon_group_bounds(polys)
+    bounds = polygon_group_bounds_numpy(polys)
     if axis == "x":
         current_min = bounds[0]
         limit = sheet_min_x + spacing
@@ -796,9 +827,9 @@ def _find_max_slide(
             continue
 
         if axis == "x":
-            test_polys = translate_polygons(polys, -test_slide, 0)
+            test_polys = translate_polygons_numpy(polys, -test_slide, 0)
         else:
-            test_polys = translate_polygons(polys, 0, -test_slide)
+            test_polys = translate_polygons_numpy(polys, 0, -test_slide)
 
         if _any_overlap(test_polys, other_polys_list):
             step /= 2
@@ -837,18 +868,20 @@ def place_parts(
     sheet_spatial_grids = {
         sheet.uid: SpatialGrid(cell_size=50.0) for sheet in sheets
     }
-    sheet_placed_polys: Dict[str, List[List[Polygon]]] = {
+    sheet_placed_polys: Dict[str, List[List[NumpyPolygon]]] = {
         sheet.uid: [] for sheet in sheets
     }
     # Track placed hulls per sheet
-    sheet_placed_hulls: Dict[str, List[List[Polygon]]] = {
+    sheet_placed_hulls: Dict[str, List[List[NumpyPolygon]]] = {
         sheet.uid: [] for sheet in sheets
     }
 
     part_areas = []
     for i, part in enumerate(parts):
         polygons = part.get("polygons", [])
-        area = sum(abs(polygon_area(poly)) for poly in polygons)
+        # Convert to numpy for area calculation
+        polygons_np = [np.array(poly) for poly in polygons]
+        area = sum(abs(polygon_area_numpy(poly)) for poly in polygons_np)
         part_areas.append((area, i))
 
     sorted_indices = [idx for _, idx in sorted(part_areas, reverse=True)]
@@ -869,17 +902,23 @@ def place_parts(
             logger.warning("Part '%s' has no polygons", uid)
             continue
 
-        rotated = rotate_polygons(polygons, rotation)
-        normalized, orig_min_x, orig_min_y = normalize_polygons(rotated)
+        # Convert to numpy arrays
+        polygons_np = [np.array(poly) for poly in polygons]
+        hulls_np = [np.array(hull) for hull in hulls] if hulls else []
+
+        rotated = rotate_polygons_numpy(polygons_np, rotation)
+        normalized, orig_min_x, orig_min_y = normalize_polygons_numpy(rotated)
 
         # Prepare hulls: rotate them, then normalize using the same offset as
         # polygons
-        rotated_hulls = rotate_polygons(hulls, rotation) if hulls else []
-        normalized_hulls = translate_polygons(
+        rotated_hulls = (
+            rotate_polygons_numpy(hulls_np, rotation) if hulls_np else []
+        )
+        normalized_hulls = translate_polygons_numpy(
             rotated_hulls, -orig_min_x, -orig_min_y
         )
 
-        part_bounds = polygon_group_bounds(normalized)
+        part_bounds = polygon_group_bounds_numpy(normalized)
         part_width = part_bounds[2] - part_bounds[0]
         part_height = part_bounds[3] - part_bounds[1]
 
@@ -888,7 +927,7 @@ def place_parts(
         sheets_with_valid_ifp = 0
 
         for sheet in sheets:
-            sheet_bounds = polygon_bounds(sheet.polygon)
+            sheet_bounds = polygon_bounds_numpy(sheet.polygon)
             sheet_width = sheet_bounds[2] - sheet_bounds[0]
             sheet_height = sheet_bounds[3] - sheet_bounds[1]
 
@@ -964,10 +1003,10 @@ def place_parts(
 
         assert best_placement is not None
         best_pos, sheet = best_placement
-        world_placed_group = translate_polygons(
+        world_placed_group = translate_polygons_numpy(
             normalized, best_pos[0], best_pos[1]
         )
-        world_placed_hulls = translate_polygons(
+        world_placed_hulls = translate_polygons_numpy(
             normalized_hulls, best_pos[0], best_pos[1]
         )
 
@@ -996,7 +1035,7 @@ def place_parts(
         sheet_placed_hulls[sheet.uid].append(world_placed_hulls)
         sheet_spatial_grids[sheet.uid].insert(
             len(sheet_placed_polys[sheet.uid]) - 1,
-            polygon_group_bounds(world_placed_group),
+            polygon_group_bounds_numpy(world_placed_group),
         )
 
     if not placements:
@@ -1011,7 +1050,7 @@ def place_parts(
         if not sheet_placements:
             continue
 
-        sheet_world_poly = translate_polygons(
+        sheet_world_poly = translate_polygons_numpy(
             [sheet.polygon], sheet.world_offset_x, sheet.world_offset_y
         )[0]
 
@@ -1030,7 +1069,9 @@ def place_parts(
     )
 
     total_area = sum(
-        abs(polygon_area(poly)) for p in placements for poly in p.polygons
+        abs(polygon_area_numpy(poly))
+        for p in placements
+        for poly in p.polygons
     )
 
     return NestResult(
@@ -1053,7 +1094,9 @@ def _calculate_fitness(
         return float("inf")
 
     total_part_area = sum(
-        abs(polygon_area(poly)) for p in placements for poly in p.polygons
+        abs(polygon_area_numpy(poly))
+        for p in placements
+        for poly in p.polygons
     )
 
     if total_part_area < 1e-9:
@@ -1065,7 +1108,7 @@ def _calculate_fitness(
 
     for p in placements:
         sid = p.sheet_uid or "unknown"
-        px, py, pmax_x, pmax_y = polygon_group_bounds(p.polygons)
+        px, py, pmax_x, pmax_y = polygon_group_bounds_numpy(p.polygons)
 
         if sid not in sheet_bounds_map:
             # min_x, min_y, max_x, max_y, sum_x, sum_y, count
@@ -1162,8 +1205,8 @@ def validate_placements_no_overlap(
             for poly1 in p1.polygons:
                 for poly2 in p2.polygons:
                     try:
-                        c1 = to_clipper(poly1, scale)
-                        c2 = to_clipper(poly2, scale)
+                        c1 = to_clipper_numpy(poly1, scale)
+                        c2 = to_clipper_numpy(poly2, scale)
                         clipper = pyclipper.Pyclipper()
                         clipper.AddPath(c1, pyclipper.PT_SUBJECT, True)
                         clipper.AddPath(c2, pyclipper.PT_CLIP, True)

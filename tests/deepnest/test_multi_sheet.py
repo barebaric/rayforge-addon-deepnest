@@ -3,6 +3,7 @@ Tests for multi-sheet nesting functionality.
 """
 
 import pytest
+import numpy as np
 
 from deepnest.deepnest.models import (
     NestConfig,
@@ -18,10 +19,10 @@ from deepnest.deepnest.placement import (
 
 def P(*points):
     """Helper to create a polygon from integer points."""
-    return [(float(x), float(y)) for x, y in points]
+    return np.array([(float(x), float(y)) for x, y in points])
 
 
-def SI(polygon, uid="sheet"):
+def SI(polygon: np.ndarray, uid="sheet") -> SheetInfo:
     """Helper to create a SheetInfo from a polygon."""
     return SheetInfo(uid=uid, polygon=polygon)
 
