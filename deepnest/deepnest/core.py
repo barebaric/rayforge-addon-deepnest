@@ -11,7 +11,6 @@ from rayforge.core.geo.polygon import (
     Polygon,
     polygon_area,
     polygon_bounds,
-    polygon_group_bounds,
     polygon_offset,
     clean_polygon,
     convex_hull,
@@ -133,6 +132,9 @@ class DeepNest:
 
         processed, offset_x, offset_y = normalize_polygons(processed)
 
+        # Pre-calculate convex hulls for hierarchical collision detection
+        hulls = [convex_hull(p) for p in processed]
+
         info = WorkpieceInfo(
             uid=uid or f"geo_{len(self._workpieces) + len(self._sheets)}",
             polygons=processed,
@@ -141,6 +143,7 @@ class DeepNest:
             is_sheet=is_sheet,
             offset_x=offset_x,
             offset_y=offset_y,
+            hulls=hulls,
         )
 
         if is_sheet:
@@ -241,8 +244,6 @@ class DeepNest:
         self._ga = GeneticAlgorithm(parts, self.config)
 
         # First, evaluate the identity placement (original positions/rotations)
-        # This ensures we at least match the starting point
-        # Only do this for smaller cases to avoid performance impact
         if len(parts) < 50:
             identity_rotations = [0.0] * len(parts)
             identity_result = place_parts(
@@ -251,18 +252,6 @@ class DeepNest:
 
             best_solution: Optional[NestSolution] = None
             if identity_result and identity_result.fitness < float("inf"):
-                # Calculate bounding box area for identity placement
-                min_x = float("inf")
-                min_y = float("inf")
-                max_x = float("-inf")
-                max_y = float("-inf")
-                for p in identity_result.placements:
-                    px, py, pmax_x, pmax_y = polygon_group_bounds(p.polygons)
-                    min_x = min(min_x, px)
-                    min_y = min(min_y, py)
-                    max_x = max(max_x, pmax_x)
-                    max_y = max(max_y, pmax_y)
-
                 best_solution = NestSolution(
                     placements=[
                         {
@@ -278,10 +267,6 @@ class DeepNest:
                     ],
                     fitness=identity_result.fitness,
                     area_used=identity_result.area_used,
-                )
-                logger.debug(
-                    "Identity placement fitness: %.4f",
-                    identity_result.fitness,
                 )
         else:
             best_solution = None
@@ -457,6 +442,7 @@ class DeepNest:
                                 y=p.y,
                                 rotation=p.rotation,
                                 polygons=p.polygons,
+                                hulls=p.hulls,
                                 sheet_uid=p.sheet_uid,
                             )
                             for p in result.placements
@@ -562,6 +548,7 @@ class DeepNest:
                     "rotation": p.rotation,
                     "sheet_uid": p.sheet_uid,
                     "polygons": p.polygons,
+                    "hulls": p.hulls,
                 }
                 for p in state.best_placements
             ],
@@ -586,6 +573,7 @@ class DeepNest:
                         "source": wp.source,
                         "uid": wp.uid,
                         "polygons": wp.polygons,
+                        "hulls": wp.hulls,  # Pass hulls to placement
                         "area": total_area,
                     }
                 )
@@ -643,4 +631,5 @@ class DeepNest:
             source=-1,
             quantity=1,
             is_sheet=True,
+            hulls=[convex_hull(sheet_polygon)],
         )

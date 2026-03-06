@@ -1,5 +1,5 @@
 import logging
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional, Tuple, Set
 from dataclasses import dataclass
 import pyclipper
 import math
@@ -81,32 +81,52 @@ def _any_overlap(
     placed_polys_list: List[List[Polygon]],
     spatial_grid: Optional[SpatialGrid] = None,
     candidate_bbox: Optional[Rect] = None,
+    candidate_hulls: Optional[List[Polygon]] = None,
+    placed_hulls_list: Optional[List[List[Polygon]]] = None,
 ) -> bool:
     """Check if candidate polygons overlap with any placed polygons."""
     cand_bbox = candidate_bbox or polygon_group_bounds(candidate_polys)
 
+    # Use spatial grid to limit checks if available
+    indices_to_check = range(len(placed_polys_list))
     if spatial_grid is not None:
-        nearby_indices = spatial_grid.query(cand_bbox)
-        for idx in nearby_indices:
-            if idx >= len(placed_polys_list):
+        indices_to_check = list(spatial_grid.query(cand_bbox))
+        # Filter out indices that might be out of bounds if grid is stale
+        indices_to_check = [
+            i for i in indices_to_check if i < len(placed_polys_list)
+        ]
+
+    for idx in indices_to_check:
+        placed_polys = placed_polys_list[idx]
+        placed_bbox = polygon_group_bounds(placed_polys)
+
+        # 1. Bounding Box Check (Fastest)
+        if not bboxes_intersect(cand_bbox, placed_bbox):
+            continue
+
+        # 2. Convex Hull Check (Medium speed)
+        # If hulls don't intersect, the detailed polygons definitely don't.
+        # This skips the expensive polygon check for concave parts nested
+        # inside bounding boxes but not touching.
+        if candidate_hulls and placed_hulls_list:
+            placed_hulls = placed_hulls_list[idx]
+            hulls_intersect = False
+            for cand_hull in candidate_hulls:
+                for placed_hull in placed_hulls:
+                    if polygons_intersect(cand_hull, placed_hull):
+                        hulls_intersect = True
+                        break
+                if hulls_intersect:
+                    break
+
+            if not hulls_intersect:
                 continue
-            placed_polys = placed_polys_list[idx]
-            placed_bbox = polygon_group_bounds(placed_polys)
-            if not bboxes_intersect(cand_bbox, placed_bbox):
-                continue
-            for cand_poly in candidate_polys:
-                for placed_poly in placed_polys:
-                    if polygons_intersect(cand_poly, placed_poly, min_area=10):
-                        return True
-    else:
-        for placed_polys in placed_polys_list:
-            placed_bbox = polygon_group_bounds(placed_polys)
-            if not bboxes_intersect(cand_bbox, placed_bbox):
-                continue
-            for cand_poly in candidate_polys:
-                for placed_poly in placed_polys:
-                    if polygons_intersect(cand_poly, placed_poly, min_area=10):
-                        return True
+
+        # 3. Detailed Polygon Check (Slowest)
+        for cand_poly in candidate_polys:
+            for placed_poly in placed_polys:
+                if polygons_intersect(cand_poly, placed_poly, min_area=10):
+                    return True
     return False
 
 
@@ -275,6 +295,44 @@ def _generate_bottom_left_candidates(
     return candidates
 
 
+def _filter_candidates_multi_resolution(
+    candidates: List[Tuple[float, float]],
+    ifp_bounds: Tuple[float, float, float, float],
+    min_dist: float,
+) -> List[Tuple[float, float]]:
+    """
+    Filter candidate positions using a grid-based multi-resolution search
+    approach. Enforces a minimum distance between checked candidates to
+    reduce compute time.
+    """
+    if not candidates:
+        return []
+
+    filtered_candidates = []
+    seen_buckets: Set[Tuple[int, int]] = set()
+
+    # Pre-check bounds to avoid iterating points strictly outside
+    bx_min, by_min, bx_max, by_max = ifp_bounds
+
+    for cx, cy in candidates:
+        # 1. Bounds check with small tolerance
+        if cx < bx_min - 0.01 or cx > bx_max + 0.01:
+            continue
+        if cy < by_min - 0.01 or cy > by_max + 0.01:
+            continue
+
+        # 2. Grid-based spatial decimation
+        bucket_x = int(cx / min_dist)
+        bucket_y = int(cy / min_dist)
+
+        if (bucket_x, bucket_y) not in seen_buckets:
+            seen_buckets.add((bucket_x, bucket_y))
+            # Keep precision, but ensure we only take one point per grid cell
+            filtered_candidates.append((cx, cy))
+
+    return filtered_candidates
+
+
 def _find_valid_position_fast(
     ifp: Polygon,
     part_polygons: List[Polygon],
@@ -283,6 +341,8 @@ def _find_valid_position_fast(
     spacing: float = 0.1,
     spatial_grid: Optional[SpatialGrid] = None,
     sheet_world_offset: Tuple[float, float] = (0.0, 0.0),
+    part_hulls: Optional[List[Polygon]] = None,
+    placed_hulls_list: Optional[List[List[Polygon]]] = None,
 ) -> Optional[Tuple[float, float]]:
     """
     Fast placement using bottom-left and perimeter-based heuristics.
@@ -331,13 +391,13 @@ def _find_valid_position_fast(
             )
         )
 
-    unique_candidates = set()
-    for cx, cy in candidates:
-        if cx < ifp_bounds[0] - 0.01 or cx > ifp_bounds[2] + 0.01:
-            continue
-        if cy < ifp_bounds[1] - 0.01 or cy > ifp_bounds[3] + 0.01:
-            continue
-        unique_candidates.add((round(cx, 4), round(cy, 4)))
+    # Multi-Resolution Filter
+    # Use a minimum distance proportional to curve tolerance or spacing
+    # to avoid checking thousands of nearly identical positions.
+    min_dist = max(0.1, config.curve_tolerance * 2)
+    unique_candidates = _filter_candidates_multi_resolution(
+        candidates, ifp_bounds, min_dist
+    )
 
     def score_candidate(pos: Tuple[float, float]) -> float:
         if config.placement_type == "gravity":
@@ -359,6 +419,12 @@ def _find_valid_position_fast(
             continue
 
         test_polys = translate_polygons(part_polygons, x, y)
+
+        # Prepare hulls for check if available
+        test_hulls = None
+        if part_hulls:
+            test_hulls = translate_polygons(part_hulls, x, y)
+
         cand_bbox_test = (
             x + part_bounds[0],
             y + part_bounds[1],
@@ -367,7 +433,12 @@ def _find_valid_position_fast(
         )
 
         if _any_overlap(
-            test_polys, placed_polys_list, spatial_grid, cand_bbox_test
+            test_polys,
+            placed_polys_list,
+            spatial_grid,
+            cand_bbox_test,
+            candidate_hulls=test_hulls,
+            placed_hulls_list=placed_hulls_list,
         ):
             continue
 
@@ -386,6 +457,8 @@ def _find_valid_position(
     spacing: float = 0.1,
     spatial_grid: Optional[SpatialGrid] = None,
     sheet_world_offset: Tuple[float, float] = (0.0, 0.0),
+    part_hulls: Optional[List[Polygon]] = None,
+    placed_hulls_list: Optional[List[List[Polygon]]] = None,
 ) -> Optional[Tuple[float, float]]:
     """
     Find a valid position in the IFP where part doesn't overlap placed parts.
@@ -399,6 +472,8 @@ def _find_valid_position(
         spacing,
         spatial_grid,
         sheet_world_offset,
+        part_hulls,
+        placed_hulls_list,
     )
 
     if result is not None:
@@ -539,14 +614,11 @@ def _find_valid_position(
     # Make sure IFP corner vertices are included in case NFP boolean failed
     candidates.extend(ifp_world)
 
-    # Deduplicate candidate points to avoid redundant intersection checks
-    unique_candidates = set()
-    for cx, cy in candidates:
-        if cx < ifp_bounds[0] - 0.01 or cx > ifp_bounds[2] + 0.01:
-            continue
-        if cy < ifp_bounds[1] - 0.01 or cy > ifp_bounds[3] + 0.01:
-            continue
-        unique_candidates.add((round(cx, 4), round(cy, 4)))
+    # Multi-Resolution Filter
+    min_dist = max(0.1, config.curve_tolerance * 2)
+    unique_candidates = _filter_candidates_multi_resolution(
+        candidates, ifp_bounds, min_dist
+    )
 
     best_score = float("inf")
     best_pos = None
@@ -566,6 +638,11 @@ def _find_valid_position(
             continue
 
         test_polys = translate_polygons(part_polygons, x, y)
+
+        test_hulls = None
+        if part_hulls:
+            test_hulls = translate_polygons(part_hulls, x, y)
+
         cand_bbox_test = (
             x + part_bounds[0],
             y + part_bounds[1],
@@ -576,7 +653,12 @@ def _find_valid_position(
         # Fallback exact collision check to catch any Concave
         # Minkowski artifacts
         if _any_overlap(
-            test_polys, placed_polys_list, spatial_grid, cand_bbox_test
+            test_polys,
+            placed_polys_list,
+            spatial_grid,
+            cand_bbox_test,
+            candidate_hulls=test_hulls,
+            placed_hulls_list=placed_hulls_list,
         ):
             continue
 
@@ -601,6 +683,11 @@ def _apply_gravity(
         return placements
 
     sheet_bounds = polygon_bounds(sheet_poly)
+
+    # Pre-build list of lists for collision checking
+    # Note: gravity slide doesn't use the hull optimization currently
+    # to keep it simple, as it moves in small increments.
+    # It could be added if gravity performance becomes a bottleneck.
 
     for _ in range(10):
         any_moved = False
@@ -629,6 +716,10 @@ def _apply_gravity(
                 placement.polygons = translate_polygons(
                     placement.polygons, 0, -dy
                 )
+                if placement.hulls:
+                    placement.hulls = translate_polygons(
+                        placement.hulls, 0, -dy
+                    )
                 any_moved = True
 
         sorted_by_x = sorted(
@@ -655,6 +746,10 @@ def _apply_gravity(
                 placement.polygons = translate_polygons(
                     placement.polygons, -dx, 0
                 )
+                if placement.hulls:
+                    placement.hulls = translate_polygons(
+                        placement.hulls, -dx, 0
+                    )
                 any_moved = True
 
         if not any_moved:
@@ -745,6 +840,10 @@ def place_parts(
     sheet_placed_polys: Dict[str, List[List[Polygon]]] = {
         sheet.uid: [] for sheet in sheets
     }
+    # Track placed hulls per sheet
+    sheet_placed_hulls: Dict[str, List[List[Polygon]]] = {
+        sheet.uid: [] for sheet in sheets
+    }
 
     part_areas = []
     for i, part in enumerate(parts):
@@ -763,6 +862,7 @@ def place_parts(
         rotation = rotations[i]
         part = parts[i]
         polygons = part.get("polygons", [])
+        hulls = part.get("hulls", [])
         uid = part.get("uid", f"part_{i}")
 
         if not polygons:
@@ -771,6 +871,13 @@ def place_parts(
 
         rotated = rotate_polygons(polygons, rotation)
         normalized, orig_min_x, orig_min_y = normalize_polygons(rotated)
+
+        # Prepare hulls: rotate them, then normalize using the same offset as
+        # polygons
+        rotated_hulls = rotate_polygons(hulls, rotation) if hulls else []
+        normalized_hulls = translate_polygons(
+            rotated_hulls, -orig_min_x, -orig_min_y
+        )
 
         part_bounds = polygon_group_bounds(normalized)
         part_width = part_bounds[2] - part_bounds[0]
@@ -824,6 +931,8 @@ def place_parts(
                         sheet.world_offset_x,
                         sheet.world_offset_y,
                     ),
+                    part_hulls=normalized_hulls,
+                    placed_hulls_list=sheet_placed_hulls[sheet.uid],
                 )
 
                 if pos is not None:
@@ -858,6 +967,9 @@ def place_parts(
         world_placed_group = translate_polygons(
             normalized, best_pos[0], best_pos[1]
         )
+        world_placed_hulls = translate_polygons(
+            normalized_hulls, best_pos[0], best_pos[1]
+        )
 
         placement = Placement(
             id=part.get("id", i),
@@ -867,6 +979,7 @@ def place_parts(
             y=best_pos[1],
             rotation=rotation,
             polygons=world_placed_group,
+            hulls=world_placed_hulls,
             sheet_uid=sheet.uid,
         )
 
@@ -880,6 +993,7 @@ def place_parts(
 
         placements.append(placement)
         sheet_placed_polys[sheet.uid].append(world_placed_group)
+        sheet_placed_hulls[sheet.uid].append(world_placed_hulls)
         sheet_spatial_grids[sheet.uid].insert(
             len(sheet_placed_polys[sheet.uid]) - 1,
             polygon_group_bounds(world_placed_group),

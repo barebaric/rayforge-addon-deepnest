@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Literal, Optional
 
 from rayforge.core.geo.polygon import Polygon
@@ -30,6 +30,8 @@ class WorkpieceInfo:
     is_sheet: bool = False
     offset_x: float = 0.0
     offset_y: float = 0.0
+    # Pre-computed convex hulls for hierarchical collision detection
+    hulls: List[Polygon] = field(default_factory=list)
 
 
 @dataclass
@@ -52,6 +54,8 @@ class Placement:
     rotation: float
     polygons: List[Polygon]
     sheet_uid: Optional[str] = None
+    # Rotated convex hulls corresponding to the polygons
+    hulls: List[Polygon] = field(default_factory=list)
 
 
 @dataclass
