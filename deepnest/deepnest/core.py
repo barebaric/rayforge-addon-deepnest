@@ -242,6 +242,12 @@ class DeepNest:
 
         self._ga = GeneticAlgorithm(parts, self.config)
 
+        # Calculate target fitness for early termination
+        # Fitness is ~ 1/Utilization. Lower fitness is better.
+        target_fitness = 0.0
+        if self.config.target_utilization > 0:
+            target_fitness = 1.0 / self.config.target_utilization
+
         # First, evaluate the identity placement (original positions/rotations)
         if len(parts) < 50:
             identity_rotations = [0.0] * len(parts)
@@ -275,6 +281,18 @@ class DeepNest:
         for generation in range(num_generations):
             if self._cancelled:
                 logger.info("Nesting cancelled at generation %d", generation)
+                break
+
+            # Check target from previous generation/identity check
+            if (
+                best_solution
+                and target_fitness > 0
+                and best_solution.fitness <= target_fitness
+            ):
+                logger.info(
+                    "Early termination: Target utilization reached (%.2f%%)",
+                    (1.0 / best_solution.fitness) * 100,
+                )
                 break
 
             generation_improved = False
@@ -322,6 +340,26 @@ class DeepNest:
                     ):
                         best_solution = solution
                         generation_improved = True
+
+                        # Immediate check after finding improvement
+                        if (
+                            target_fitness > 0
+                            and best_solution.fitness <= target_fitness
+                        ):
+                            logger.info(
+                                "Early termination: Target utilization "
+                                "reached (%.2f%%)",
+                                (1.0 / best_solution.fitness) * 100,
+                            )
+                            break
+
+            # If we broke inner loop due to target reached
+            if (
+                best_solution
+                and target_fitness > 0
+                and best_solution.fitness <= target_fitness
+            ):
+                break
 
             if not generation_improved:
                 generations_without_improvement += 1
@@ -384,7 +422,6 @@ class DeepNest:
             elif num_parts > 10:
                 num_generations = 15
             else:
-                # For simple cases, use more generations for better exploration
                 num_generations = min(30, max(10, num_parts * 2))
 
         sheets = [
@@ -408,6 +445,10 @@ class DeepNest:
 
         ga = GeneticAlgorithm(parts, self.config)
         state = _AsyncNestingState()
+
+        target_fitness = 0.0
+        if self.config.target_utilization > 0:
+            target_fitness = 1.0 / self.config.target_utilization
 
         def on_individual_done(task):
             key = task.key
@@ -448,6 +489,18 @@ class DeepNest:
                         ]
                         state.improved_this_generation = True
 
+                        # Check target
+                        if (
+                            target_fitness > 0
+                            and state.best_fitness <= target_fitness
+                        ):
+                            logger.info(
+                                "Early termination: Target utilization "
+                                "reached (%.2f%%)",
+                                (1.0 / state.best_fitness) * 100,
+                            )
+                            state.done = True
+
         while state.generation < num_generations and not state.done:
             state.improved_this_generation = False
 
@@ -456,12 +509,12 @@ class DeepNest:
                 with state.lock:
                     if len(state.pending_tasks) >= max_parallel_tasks:
                         break
+                    if state.done:
+                        break
 
                 if ind.fitness is None and not ind.processing:
                     ind.processing = True
                     # Avoid deepcopy to save memory and GC churn.
-                    # Place_parts treats input as read-only.
-                    # Serialization by task_manager handles isolation.
                     task_key = f"nest-eval-{state.generation}-{idx}"
 
                     with state.lock:
@@ -477,7 +530,9 @@ class DeepNest:
                         when_done=on_individual_done,
                     )
 
-            # Wait briefly to let tasks complete
+            if state.done:
+                break
+
             await asyncio.sleep(0.05)
 
             with state.lock:
@@ -485,6 +540,9 @@ class DeepNest:
 
                 # Check if entire generation is complete
                 active_count = len(state.pending_tasks)
+
+            if state.done:
+                break
 
             # If we have no active tasks and everyone is processed, move to
             # next gen

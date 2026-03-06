@@ -19,6 +19,7 @@ class NestConfig:
     clipper_scale: int = 10000000
     time_ratio: float = 0.5
     overlap_tolerance: float = 0.0001
+    target_utilization: float = 0.99  # Stop if efficiency > 99%
 
 
 @dataclass
