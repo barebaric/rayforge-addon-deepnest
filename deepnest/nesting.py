@@ -5,6 +5,7 @@ Implements a nesting layout strategy using the deepnest module.
 from __future__ import annotations
 
 import logging
+import math
 import os
 from typing import (
     Dict,
@@ -81,6 +82,14 @@ class NestingLayoutStrategy(LayoutStrategy):
         num_workpieces = len(workpieces)
         logger.debug("Found %d workpiece(s) to nest", num_workpieces)
 
+        initial_area = self._calculate_bounding_box_area(workpieces)
+        initially_on_stock = self._get_workpieces_on_stock(workpieces)
+        logger.debug(
+            "Initial bounding box area: %s, workpieces on stock: %d",
+            initial_area,
+            len(initially_on_stock),
+        )
+
         if context:
             context.set_progress(0.1)
 
@@ -126,6 +135,12 @@ class NestingLayoutStrategy(LayoutStrategy):
             self.unplaced_items = list(workpieces)
             return {}
 
+        if not self._is_solution_better_than_initial(
+            solution, workpieces, initial_area, initially_on_stock
+        ):
+            self.unplaced_items = list(workpieces)
+            return {}
+
         logger.debug(
             "Nesting complete: %d placement(s), fitness=%.4f",
             len(solution.placements),
@@ -168,6 +183,14 @@ class NestingLayoutStrategy(LayoutStrategy):
 
         num_workpieces = len(workpieces)
         logger.debug("Found %d workpiece(s) to nest", num_workpieces)
+
+        initial_area = self._calculate_bounding_box_area(workpieces)
+        initially_on_stock = self._get_workpieces_on_stock(workpieces)
+        logger.debug(
+            "Initial bounding box area: %s, workpieces on stock: %d",
+            initial_area,
+            len(initially_on_stock),
+        )
 
         cpu_count = os.cpu_count() or 4
         max_workers = max(1, int(cpu_count * 0.9))
@@ -215,6 +238,12 @@ class NestingLayoutStrategy(LayoutStrategy):
 
         if not solution:
             logger.warning("Nesting found no solution")
+            self.unplaced_items = list(workpieces)
+            return {}
+
+        if not self._is_solution_better_than_initial(
+            solution, workpieces, initial_area, initially_on_stock
+        ):
             self.unplaced_items = list(workpieces)
             return {}
 
@@ -267,6 +296,134 @@ class NestingLayoutStrategy(LayoutStrategy):
             elif isinstance(item, Group):
                 workpieces.extend(item.get_descendants(of_type=WorkPiece))
         return workpieces
+
+    def _calculate_bounding_box_area(
+        self, workpieces: list[WorkPiece]
+    ) -> Optional[float]:
+        valid_bboxes = []
+        for wp in workpieces:
+            geo = wp.get_world_geometry()
+            if geo is None or geo.is_empty():
+                continue
+            min_x, min_y, max_x, max_y = geo.rect()
+            valid_bboxes.append((min_x, min_y, max_x, max_y))
+
+        if not valid_bboxes:
+            return None
+
+        all_min_x = min(b[0] for b in valid_bboxes)
+        all_min_y = min(b[1] for b in valid_bboxes)
+        all_max_x = max(b[2] for b in valid_bboxes)
+        all_max_y = max(b[3] for b in valid_bboxes)
+
+        return (all_max_x - all_min_x) * (all_max_y - all_min_y)
+
+    def _get_workpieces_on_stock(
+        self, workpieces: list[WorkPiece]
+    ) -> set[WorkPiece]:
+        stock_polygons = self._get_stock_polygons()
+        if not stock_polygons:
+            return set(workpieces)
+
+        on_stock = set()
+        for wp in workpieces:
+            geo = wp.get_world_geometry()
+            if geo is None or geo.is_empty():
+                continue
+            wp_min_x, wp_min_y, wp_max_x, wp_max_y = geo.rect()
+            for stock_geo, _ in stock_polygons:
+                s_min_x, s_min_y, s_max_x, s_max_y = stock_geo.rect()
+                if (
+                    wp_min_x >= s_min_x
+                    and wp_min_y >= s_min_y
+                    and wp_max_x <= s_max_x
+                    and wp_max_y <= s_max_y
+                ):
+                    on_stock.add(wp)
+                    break
+
+        return on_stock
+
+    def _is_solution_better_than_initial(
+        self,
+        solution: NestSolution,
+        workpieces: list[WorkPiece],
+        initial_area: Optional[float],
+        initially_on_stock: set[WorkPiece],
+    ) -> bool:
+        placed_uids = {p.get("uid") for p in solution.placements}
+        now_placed = {wp for wp in workpieces if wp.uid in placed_uids}
+
+        for wp in initially_on_stock:
+            if wp not in now_placed:
+                logger.warning(
+                    "Rejecting nesting solution: workpiece '%s' was on stock "
+                    "but is now unplaced",
+                    wp.uid,
+                )
+                return False
+
+        if initial_area is None or not initially_on_stock:
+            return True
+
+        new_area = self._calculate_placements_bounding_box_area(solution)
+        if new_area is not None and new_area > initial_area:
+            logger.warning(
+                "Rejecting nesting solution: bounding box area "
+                "%.2f > initial %.2f",
+                new_area,
+                initial_area,
+            )
+            return False
+
+        return True
+
+        new_area = self._calculate_placements_bounding_box_area(solution)
+        if new_area is not None and new_area > initial_area:
+            logger.warning(
+                "Rejecting nesting solution: bounding box area "
+                "%.2f > initial %.2f",
+                new_area,
+                initial_area,
+            )
+            return False
+
+        return True
+
+    def _calculate_placements_bounding_box_area(
+        self, solution: NestSolution
+    ) -> Optional[float]:
+        if not solution.placements:
+            return None
+
+        all_points = []
+        for placement in solution.placements:
+            x = placement.get("x", 0)
+            y = placement.get("y", 0)
+            rotation = placement.get("rotation", 0)
+            polygons = placement.get("polygons", [])
+
+            cos_r = math.cos(math.radians(rotation))
+            sin_r = math.sin(math.radians(rotation))
+
+            for poly in polygons:
+                if poly is None or len(poly) == 0:
+                    continue
+                for point in poly:
+                    px, py = point[0], point[1]
+                    rx = px * cos_r - py * sin_r + x
+                    ry = px * sin_r + py * cos_r + y
+                    all_points.append((rx, ry))
+
+        if not all_points:
+            return None
+
+        min_x = min(p[0] for p in all_points)
+        min_y = min(p[1] for p in all_points)
+        max_x = max(p[0] for p in all_points)
+        max_y = max(p[1] for p in all_points)
+
+        return (max_x - min_x) * (max_y - min_y)
 
     def _get_stock_geometry(self, stock_item: StockItem) -> Optional[Geometry]:
         """

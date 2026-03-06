@@ -358,8 +358,10 @@ def inner_fit_polygon(
                     base_ifps = []
                     for path in ifp_solution:
                         if len(path) >= 3:
-                            base_ifps.append(from_clipper(path, scale))
+                            ifp_poly = from_clipper(path, scale)
+                            base_ifps.append(ifp_poly)
                 else:
+                    logger.debug("IFP result: empty (no solution)")
                     base_ifps = []
 
         with _cache_lock:

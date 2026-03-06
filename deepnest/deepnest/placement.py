@@ -34,8 +34,9 @@ def _score_position(x: float, y: float) -> float:
     Score a candidate position for placement.
     Lower is better. Uses gravity-style scoring (bottom-left preference)
     which produces compact packing that minimizes overall bounding box area.
+    Heavily weights y to encourage horizontal over vertical expansion.
     """
-    return y + x * 0.001
+    return y * 100.0 + x
 
 
 @dataclass
@@ -187,7 +188,11 @@ def _get_combined_ifp(
     part_polygons: List[NumpyPolygon],
     config: NestConfig,
 ) -> List[NumpyPolygon]:
-    """Get the combined IFP for all polygons in a part using intersection."""
+    """Get the combined IFP for all polygons in a part using intersection.
+
+    Returns a single unified IFP region by unioning any fragments that result
+    from the intersection operations.
+    """
     if not part_polygons:
         return []
 
@@ -195,14 +200,12 @@ def _get_combined_ifp(
     scale = config.clipper_scale
 
     for poly in part_polygons:
-        # inner_fit_polygon expects Python Polygon types
         poly_py = poly.tolist()
         sheet_py = sheet.tolist()
         ifps = inner_fit_polygon(sheet_py, poly_py, config)
         if not ifps:
             return []
 
-        # Convert results to numpy arrays
         ifps_numpy = [np.array(ifp) for ifp in ifps]
 
         if not combined_ifps:
@@ -236,7 +239,19 @@ def _get_combined_ifp(
             except Exception:
                 return []
 
-    return combined_ifps
+    if len(combined_ifps) <= 1:
+        return combined_ifps
+
+    largest_ifp = max(combined_ifps, key=lambda p: abs(polygon_area_numpy(p)))
+    if logger.isEnabledFor(logging.DEBUG):
+        areas = [abs(polygon_area_numpy(p)) for p in combined_ifps]
+        logger.debug(
+            "Selected largest IFP from %d fragments: area=%.2f (others: %s)",
+            len(combined_ifps),
+            max(areas),
+            [f"{a:.2f}" for a in areas if a != max(areas)],
+        )
+    return [largest_ifp]
 
 
 def _generate_perimeter_candidates(
@@ -248,45 +263,48 @@ def _generate_perimeter_candidates(
 ) -> List[Tuple[float, float]]:
     """
     Generate candidate positions along the perimeter of already-placed parts.
-    Uses bounding box corners and edge midpoints for fast heuristic placement.
+    Uses edge-aligned positions for optimal packing: positions that place
+    the new part adjacent to placed parts, aligned at their edges.
     """
     candidates = []
 
-    for placed_polys in placed_polys_list:
-        p_bounds = polygon_group_bounds_numpy(placed_polys)
+    if not placed_polys_list:
+        return candidates
 
-        left_x = p_bounds[0] - part_bounds[2] - spacing
-        right_x = p_bounds[2] - part_bounds[0] + spacing
-        bottom_y = p_bounds[1] - part_bounds[3] - spacing
-        top_y = p_bounds[3] - part_bounds[1] + spacing
+    p_min_x, p_min_y, p_max_x, p_max_y = part_bounds
+
+    for placed_polys in placed_polys_list:
+        placed_bounds = polygon_group_bounds_numpy(placed_polys)
+        pb_min_x, pb_min_y, pb_max_x, pb_max_y = placed_bounds
+
+        right_x = pb_max_x + spacing - p_min_x
+        right_bottom_y = pb_min_y - p_min_y
+        right_top_y = pb_max_y - p_max_y
+
+        left_x = pb_min_x - spacing - p_max_x
+        left_bottom_y = pb_min_y - p_min_y
+        left_top_y = pb_max_y - p_max_y
+
+        above_y = pb_max_y + spacing - p_min_y
+        above_left_x = pb_min_x - p_min_x
+        above_right_x = pb_max_x - p_max_x
+
+        below_y = pb_min_y - spacing - p_max_y
+        below_left_x = pb_min_x - p_min_x
+        below_right_x = pb_max_x - p_max_x
 
         candidates.extend(
             [
-                (left_x, bottom_y),
-                (right_x, bottom_y),
-                (right_x, top_y),
-                (left_x, top_y),
+                (right_x, right_bottom_y),
+                (right_x, right_top_y),
+                (left_x, left_bottom_y),
+                (left_x, left_top_y),
+                (above_left_x, above_y),
+                (above_right_x, above_y),
+                (below_left_x, below_y),
+                (below_right_x, below_y),
             ]
         )
-
-        for placed_poly in placed_polys:
-            for px, py in placed_poly:
-                cand_x = float(px) - part_bounds[2] - spacing
-                cand_y = float(py) - part_bounds[3] - spacing
-                candidates.append((cand_x, cand_y))
-                candidates.append(
-                    (float(px) - part_bounds[0] + spacing, cand_y)
-                )
-                candidates.append(
-                    (cand_x, float(py) - part_bounds[1] + spacing)
-                )
-                candidates.append(
-                    (
-                        float(px) - part_bounds[0] + spacing,
-                        float(py) - part_bounds[1] + spacing,
-                    )
-                )
-
     return candidates[:max_candidates]
 
 
@@ -320,6 +338,53 @@ def _generate_bottom_left_candidates(
     while y <= max_y:
         candidates.append((min_x, y))
         y += step_size
+
+    candidates.append((min_x, max_y))
+    candidates.append((max_x, min_y))
+
+    return candidates
+
+
+def _generate_grid_candidates(
+    ifp_bounds: Tuple[float, float, float, float],
+    part_bounds: Tuple[float, float, float, float],
+    spacing: float,
+    step_size: float = 10.0,
+) -> List[Tuple[float, float]]:
+    """
+    Generate candidates on a grid across the entire IFP.
+    This ensures gaps between parts are searched, not just perimeters.
+    """
+    candidates = []
+
+    min_x = ifp_bounds[0] - part_bounds[0] + spacing
+    max_x = ifp_bounds[2] - part_bounds[2] - spacing
+    min_y = ifp_bounds[1] - part_bounds[1] + spacing
+    max_y = ifp_bounds[3] - part_bounds[3] - spacing
+
+    if min_x > max_x or min_y > max_y:
+        return candidates
+
+    width = max_x - min_x
+    height = max_y - min_y
+    adaptive_step = min(step_size, max(width / 3.0, height / 3.0, 1.0))
+
+    x = min_x
+    while x <= max_x:
+        y = min_y
+        while y <= max_y:
+            candidates.append((x, y))
+            y += adaptive_step
+        if max_y > min_y:
+            candidates.append((x, max_y))
+        x += adaptive_step
+
+    if max_x > min_x:
+        y = min_y
+        while y <= max_y:
+            candidates.append((max_x, y))
+            y += adaptive_step
+        candidates.append((max_x, max_y))
 
     return candidates
 
@@ -398,6 +463,11 @@ def _find_valid_position_fast(
         _generate_bottom_left_candidates(ifp_bounds, part_bounds, spacing)
     )
 
+    candidates.extend(
+        _generate_grid_candidates(ifp_bounds, part_bounds, spacing)
+    )
+
+    parts_to_sample: List[List[NumpyPolygon]] = []
     if placed_polys_list:
         if spatial_grid is not None:
             cand_bbox = (
@@ -421,24 +491,62 @@ def _find_valid_position_fast(
             )
         )
 
-    # Multi-Resolution Filter
-    # Use a minimum distance proportional to curve tolerance or spacing
-    # to avoid checking thousands of nearly identical positions.
-    min_dist = max(0.1, config.curve_tolerance * 2)
-    unique_candidates = _filter_candidates_multi_resolution(
-        candidates, ifp_bounds, min_dist
-    )
+    if logger.isEnabledFor(logging.DEBUG) and placed_polys_list:
+        perim_c = _generate_perimeter_candidates(
+            parts_to_sample, part_bounds, spacing, ifp_bounds
+        )
+        logger.debug(
+            "Generated %d perimeter candidates for %d parts, first 10: %s",
+            len(perim_c),
+            len(parts_to_sample),
+            perim_c[:10],
+        )
+
+    if logger.isEnabledFor(logging.DEBUG) and placed_polys_list:
+        logger.debug(
+            "Finding position: %d placed parts, IFP bounds: "
+            "(%.1f,%.1f)-(%.1f,%.1f), "
+            "part_bounds: (%.1f,%.1f)-(%.1f,%.1f)",
+            len(placed_polys_list),
+            ifp_bounds[0],
+            ifp_bounds[1],
+            ifp_bounds[2],
+            ifp_bounds[3],
+            part_bounds[0],
+            part_bounds[1],
+            part_bounds[2],
+            part_bounds[3],
+        )
+        if len(parts_to_sample) > 0:
+            first_bounds = polygon_group_bounds_numpy(parts_to_sample[0])
+            logger.debug(
+                "  First placed part bounds: (%.1f,%.1f)-(%.1f,%.1f)",
+                first_bounds[0],
+                first_bounds[1],
+                first_bounds[2],
+                first_bounds[3],
+            )
 
     def score_candidate(pos: Tuple[float, float]) -> float:
         return _score_position(pos[0], pos[1])
 
-    sorted_candidates = sorted(unique_candidates, key=score_candidate)
+    sorted_candidates = sorted(candidates, key=score_candidate)
+
+    min_dist = max(0.1, config.curve_tolerance * 2)
+    unique_candidates = _filter_candidates_multi_resolution(
+        sorted_candidates, ifp_bounds, min_dist
+    )
 
     best_score = float("inf")
     best_pos = None
+    checked = 0
+    rejected_ifp = 0
+    rejected_overlap = 0
 
-    for x, y in sorted_candidates:
+    for x, y in unique_candidates:
+        checked += 1
         if not point_in_polygon_numpy((x, y), ifp_world):
+            rejected_ifp += 1
             continue
 
         score = score_candidate((x, y))
@@ -447,7 +555,6 @@ def _find_valid_position_fast(
 
         test_polys = translate_polygons_numpy(part_polygons, x, y)
 
-        # Prepare hulls for check if available
         test_hulls = None
         if part_hulls:
             test_hulls = translate_polygons_numpy(part_hulls, x, y)
@@ -467,11 +574,21 @@ def _find_valid_position_fast(
             candidate_hulls=test_hulls,
             placed_hulls_list=placed_hulls_list,
         ):
+            rejected_overlap += 1
             continue
 
         best_score = score
         best_pos = (x, y)
-        break
+
+    if logger.isEnabledFor(logging.DEBUG) and placed_polys_list:
+        logger.debug(
+            "Placement search: %d candidates, %d passed IFP, "
+            "%d passed overlap, best=(%s)",
+            checked,
+            rejected_ifp,
+            rejected_overlap,
+            best_pos,
+        )
 
     return best_pos
 
@@ -489,9 +606,10 @@ def _find_valid_position(
 ) -> Optional[Tuple[float, float]]:
     """
     Find a valid position in the IFP where part doesn't overlap placed parts.
-    Uses fast bottom-left/perimeter heuristic, falls back to NFP subtraction.
+    Uses fast bottom-left/perimeter heuristic, falls back to NFP subtraction
+    only when fast method fails to find a position.
     """
-    result = _find_valid_position_fast(
+    fast_result = _find_valid_position_fast(
         ifp,
         part_polygons,
         placed_polys_list,
@@ -503,8 +621,11 @@ def _find_valid_position(
         placed_hulls_list,
     )
 
-    if result is not None:
-        return result
+    if fast_result is not None:
+        return fast_result
+
+    if not placed_polys_list:
+        return None
 
     if ifp.size < 3:
         return None
@@ -651,10 +772,13 @@ def _find_valid_position(
     # Make sure IFP corner vertices are included in case NFP boolean failed
     candidates.extend([(float(p[0]), float(p[1])) for p in ifp_world])
 
-    # Multi-Resolution Filter
+    sorted_candidates = sorted(
+        candidates, key=lambda p: _score_position(p[0], p[1])
+    )
+
     min_dist = max(0.1, config.curve_tolerance * 2)
     unique_candidates = _filter_candidates_multi_resolution(
-        candidates, ifp_bounds, min_dist
+        sorted_candidates, ifp_bounds, min_dist
     )
 
     best_score = float("inf")
@@ -868,6 +992,24 @@ def place_parts(
         logger.warning("place_parts: no sheets after layout")
         return None
 
+    logger.info(
+        "place_parts: starting with %d parts, %d sheets",
+        num_parts,
+        len(sheets),
+    )
+    for sheet in sheets:
+        sheet_bounds = polygon_bounds_numpy(sheet.polygon)
+        logger.info(
+            "  Sheet '%s': bounds=(%.2f,%.2f)-(%.2f,%.2f), offset=(%.2f,%.2f)",
+            sheet.uid,
+            sheet_bounds[0],
+            sheet_bounds[1],
+            sheet_bounds[2],
+            sheet_bounds[3],
+            sheet.world_offset_x,
+            sheet.world_offset_y,
+        )
+
     sheet_spatial_grids = {
         sheet.uid: SpatialGrid(cell_size=50.0) for sheet in sheets
     }
@@ -950,11 +1092,52 @@ def place_parts(
             ifps = _get_combined_ifp(sheet.polygon, normalized, config)
             if not ifps:
                 logger.debug(
-                    "Part '%s' has no valid IFP on sheet '%s'",
+                    "Part '%s' has no valid IFP on sheet '%s': "
+                    "part(%.2f x %.2f), sheet bounds=(%.2f,%.2f)-(%.2f,%.2f)",
                     uid,
                     sheet.uid,
+                    part_width,
+                    part_height,
+                    sheet_bounds[0],
+                    sheet_bounds[1],
+                    sheet_bounds[2],
+                    sheet_bounds[3],
                 )
                 continue
+
+            for ifp_idx, ifp in enumerate(ifps):
+                ifp_bounds = polygon_bounds_numpy(ifp)
+                ifp_height = ifp_bounds[3] - ifp_bounds[1]
+                stock_free_height = sheet_height - part_height
+                if ifp_height < stock_free_height * 0.8:
+                    logger.debug(
+                        "Part '%s' IFP[%d] on sheet '%s': "
+                        "IFP height %.2f < stock free height %.2f, "
+                        "bounds=(%.2f,%.2f)-(%.2f,%.2f)",
+                        uid,
+                        ifp_idx,
+                        sheet.uid,
+                        ifp_height,
+                        stock_free_height,
+                        ifp_bounds[0],
+                        ifp_bounds[1],
+                        ifp_bounds[2],
+                        ifp_bounds[3],
+                    )
+                else:
+                    logger.debug(
+                        "Part '%s' IFP[%d] on sheet '%s': "
+                        "bounds=(%.2f,%.2f)-(%.2f,%.2f), "
+                        "%d placed parts",
+                        uid,
+                        ifp_idx,
+                        sheet.uid,
+                        ifp_bounds[0],
+                        ifp_bounds[1],
+                        ifp_bounds[2],
+                        ifp_bounds[3],
+                        len(sheet_placed_polys[sheet.uid]),
+                    )
 
             sheets_with_valid_ifp += 1
 
@@ -1020,14 +1203,6 @@ def place_parts(
             polygons=world_placed_group,
             hulls=world_placed_hulls,
             sheet_uid=sheet.uid,
-        )
-
-        logger.debug(
-            "place_parts: placed '%s' on sheet '%s' at (%.2f, %.2f)",
-            uid,
-            sheet.uid,
-            best_pos[0],
-            best_pos[1],
         )
 
         placements.append(placement)
@@ -1144,11 +1319,15 @@ def _calculate_fitness(
         # Area of the bounding box on this sheet
         total_bounds_area += width * height
 
-        # Penalize width + height (encourages square/compact packing)
-        compaction_penalty += width + height
+        # Penalize height more than width to encourage horizontal expansion
+        # This produces wide, flat packings instead of tall, narrow ones
+        compaction_penalty += width + height * 10.0
 
-        # Penalize distance from sheet origin (gravity)
-        # Sum of (p.x - sheet.min_x) + (p.y - sheet.min_y)
+        # Penalize distance of bounding box from origin (gravity)
+        # This ensures parts are pushed towards (0, 0)
+        gravity_penalty += b[0] + b[1]
+
+        # Also penalize spread within the bounding box
         avg_x_dist = b[4] - (b[0] * b[6])
         avg_y_dist = b[5] - (b[1] * b[6])
         gravity_penalty += avg_x_dist + avg_y_dist
@@ -1160,10 +1339,10 @@ def _calculate_fitness(
     # Add gravity penalty: forces parts to bottom-left to remove whitespace
     # Normalized by sqrt(area) to make it scale-independent relative to bounds
     scale_factor = math.sqrt(total_part_area) if total_part_area > 0 else 1.0
-    fitness += (gravity_penalty / scale_factor) * 0.0001
+    fitness += (gravity_penalty / scale_factor) * 0.001
 
     # Add compaction penalty: minimize perimeter of the pack
-    fitness += (compaction_penalty / scale_factor) * 0.001
+    fitness += (compaction_penalty / scale_factor) * 0.01
 
     # Orientation penalty (prevent unnecessary rotation of rectangles)
     orientation_penalty = 0.0
