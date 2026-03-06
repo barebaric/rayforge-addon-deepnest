@@ -75,7 +75,13 @@ def _simplify_polygon(polygon: Polygon, config: NestConfig) -> Polygon:
     if config.simplify:
         return convex_hull(polygon)
 
-    # 3. Topology Cleaning
+    # 3. Merge Collinear Segments (Optional)
+    if config.merge_lines:
+        cleaned = clean_polygon(polygon, 0.1)
+        if cleaned:
+            polygon = cleaned
+
+    # 4. Topology Cleaning
     # Remove self-intersections and negligible artifacts
     tolerance = 0.01 * config.curve_tolerance
     cleaned = clean_polygon(polygon, tolerance)
