@@ -1,5 +1,4 @@
 import asyncio
-import copy
 import logging
 import math
 import threading
@@ -460,7 +459,9 @@ class DeepNest:
 
                 if ind.fitness is None and not ind.processing:
                     ind.processing = True
-                    parts_copy = copy.deepcopy(parts)
+                    # Avoid deepcopy to save memory and GC churn.
+                    # Place_parts treats input as read-only.
+                    # Serialization by task_manager handles isolation.
                     task_key = f"nest-eval-{state.generation}-{idx}"
 
                     with state.lock:
@@ -468,7 +469,7 @@ class DeepNest:
 
                     task_manager.run_process(
                         _place_parts_worker,
-                        parts_copy,
+                        parts,
                         sheets,
                         ind.rotation,
                         self.config,

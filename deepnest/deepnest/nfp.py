@@ -20,18 +20,22 @@ from rayforge.core.geo.minkowski import (
 from rayforge.core.geo.polygon import (
     Polygon,
     IntPolygon,
-    polygon_bounds,
     to_clipper,
     from_clipper,
     is_convex,
     clean_polygon,
     convex_hull,
+    polygon_bounds,
 )
 from .models import NestConfig
 
 logger = logging.getLogger(__name__)
 
 # --- CACHE SETUP ---
+# Limit cache size to prevent memory leaks during long GA runs with many
+# rotations
+MAX_CACHE_SIZE = 2000
+
 _cache_lock = threading.Lock()
 _NFP_CACHE: Dict[
     Tuple[Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]],
@@ -48,6 +52,12 @@ def clear_nfp_cache():
     with _cache_lock:
         _NFP_CACHE.clear()
         _IFP_CACHE.clear()
+
+
+def _manage_cache_size(cache: Dict):
+    """Enforce hard limit on cache size to prevent infinite growth."""
+    if len(cache) > MAX_CACHE_SIZE:
+        cache.clear()
 
 
 def _poly_to_key(poly: Polygon) -> Tuple[Tuple[float, float], ...]:
@@ -186,6 +196,8 @@ def no_fit_polygon(
     with _cache_lock:
         if cache_key in _NFP_CACHE:
             base_nfps = _NFP_CACHE[cache_key]
+        else:
+            _manage_cache_size(_NFP_CACHE)
 
     # 4. Compute if missing
     if base_nfps is None:
@@ -251,6 +263,8 @@ def inner_fit_polygon(
     with _cache_lock:
         if cache_key in _IFP_CACHE:
             base_ifps = _IFP_CACHE[cache_key]
+        else:
+            _manage_cache_size(_IFP_CACHE)
 
     if base_ifps is None:
         bin_bounds = polygon_bounds(norm_bin)
