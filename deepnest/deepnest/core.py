@@ -4,7 +4,7 @@ import logging
 import math
 import threading
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Callable, TYPE_CHECKING
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
 
 from rayforge.core.geo import Geometry
 from rayforge.core.geo.polygon import (
@@ -17,7 +17,6 @@ from rayforge.core.geo.polygon import (
     convex_hull,
     normalize_polygons,
 )
-from rayforge.shared.tasker import task_mgr
 from .genetic import GeneticAlgorithm
 from .models import (
     NestConfig,
@@ -355,28 +354,6 @@ class DeepNest:
 
         return best_solution
 
-    def nest_async(
-        self,
-        progress_callback: Optional[Callable[[float], None]] = None,
-        done_callback: Optional[
-            Callable[[Optional[NestSolution]], None]
-        ] = None,
-    ) -> None:
-        def _run_nest(context):
-            self._cancelled = False
-            result = self.nest()
-            return result
-
-        def _on_done(task):
-            if done_callback:
-                done_callback(task.result())
-
-        task_mgr.run_process(
-            _run_nest,
-            key="deepnest",
-            when_done=_on_done,
-        )
-
     async def async_nest(
         self,
         task_manager: "TaskManager",
@@ -656,19 +633,3 @@ class DeepNest:
             quantity=1,
             is_sheet=True,
         )
-
-
-def nest_geometries(
-    geometries: List[Geometry],
-    sheet: Optional[Geometry] = None,
-    config: Optional[NestConfig] = None,
-) -> Optional[NestSolution]:
-    nester = DeepNest(config)
-
-    for i, geo in enumerate(geometries):
-        nester.add_geometry(geo, uid=f"geo_{i}")
-
-    if sheet:
-        nester.add_geometry(sheet, uid="sheet", is_sheet=True)
-
-    return nester.nest()

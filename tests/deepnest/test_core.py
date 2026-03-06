@@ -8,10 +8,7 @@ from deepnest.deepnest.models import (
     NestConfig,
     WorkpieceInfo,
 )
-from deepnest.deepnest.core import (
-    DeepNest,
-    nest_geometries,
-)
+from deepnest.deepnest.core import DeepNest
 
 
 class TestWorkpieceInfo:
@@ -142,12 +139,6 @@ class TestDeepNest:
 
         nester.clear()
         assert len(nester._workpieces) == 0
-
-
-class TestNestFunctions:
-    def test_nest_geometries_empty(self):
-        result = nest_geometries([])
-        assert result is None
 
 
 class TestIntegration:

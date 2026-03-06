@@ -10,7 +10,7 @@ Reference: minkowski.cc from Deepnest project
 
 import logging
 import threading
-from typing import List, Optional, Tuple, Dict
+from typing import List, Tuple, Dict
 import pyclipper
 
 from rayforge.core.geo.minkowski import (
@@ -19,10 +19,8 @@ from rayforge.core.geo.minkowski import (
 )
 from rayforge.core.geo.polygon import (
     Polygon,
-    Point,
     IntPolygon,
     polygon_bounds,
-    almost_equal,
     to_clipper,
     from_clipper,
     is_convex,
@@ -364,75 +362,3 @@ def inner_fit_polygon(
         translated_ifps.append([(pt[0] + tx, pt[1] + ty) for pt in ifp])
 
     return translated_ifps
-
-
-def get_placement_position(
-    nfp: Polygon,
-    part: Polygon,
-    position: Point,
-    config: NestConfig,
-) -> Optional[Point]:
-    """
-    Find the best placement position within an NFP.
-    """
-    if not nfp or len(nfp) < 3:
-        return None
-
-    min_x, min_y, max_x, max_y = polygon_bounds(part)
-
-    part_width = max_x - min_x
-    part_height = max_y - min_y
-
-    if config.placement_type == "gravity":
-        return _gravity_placement(nfp, part_width, part_height, config)
-    else:
-        return _box_placement(nfp, part_width, part_height, config)
-
-
-def _gravity_placement(
-    nfp: Polygon,
-    part_width: float,
-    part_height: float,
-    config: NestConfig,
-) -> Optional[Point]:
-    """
-    Find placement that minimizes Y first, then X (gravity effect).
-    """
-    best_point = None
-    best_y = float("inf")
-    best_x = float("inf")
-
-    for pt in nfp:
-        if pt[1] < best_y or (almost_equal(pt[1], best_y) and pt[0] < best_x):
-            best_y = pt[1]
-            best_x = pt[0]
-            best_point = pt
-
-    if best_point is None:
-        return None
-
-    return (best_point[0], best_point[1])
-
-
-def _box_placement(
-    nfp: Polygon,
-    part_width: float,
-    part_height: float,
-    config: NestConfig,
-) -> Optional[Point]:
-    """
-    Find placement that minimizes X + Y (bottom-left corner packing).
-    """
-    best_point = None
-    best_score = float("inf")
-
-    for pt in nfp:
-        score = pt[0] + pt[1]
-        if score < best_score:
-            best_score = score
-            best_point = pt
-
-    if best_point is None:
-        return None
-
-    return (best_point[0], best_point[1])

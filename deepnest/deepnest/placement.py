@@ -35,16 +35,6 @@ class NestResult:
     sheet_index: int = 0
 
 
-@dataclass
-class MultiSheetResult:
-    """Result of multi-sheet nesting."""
-
-    placements: List[Placement]
-    fitness: float
-    sheets_used: List[str]
-    unplaced_count: int
-
-
 def layout_sheets_horizontal(
     sheets: List[SheetInfo],
     spacing: float = 0.0,

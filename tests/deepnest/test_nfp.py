@@ -1,7 +1,6 @@
 from deepnest.deepnest.nfp import (
     no_fit_polygon,
     inner_fit_polygon,
-    get_placement_position,
     _nfp_minkowski,
 )
 from deepnest.deepnest.models import NestConfig
@@ -174,42 +173,6 @@ class TestInnerFitPolygon:
         result = inner_fit_polygon(bin_poly, part, config=config)
         assert result is not None
         assert len(result) >= 1
-
-
-class TestGetPlacementPosition:
-    """Tests for get_placement_position function."""
-
-    def test_empty_nfp(self):
-        config = NestConfig()
-        part: Polygon = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
-        result = get_placement_position([], part, (0.0, 0.0), config=config)
-        assert result is None
-
-    def test_gravity_placement(self):
-        config = NestConfig(placement_type="gravity")
-        nfp: Polygon = [(0.0, 0.0), (50.0, 0.0), (50.0, 30.0), (0.0, 30.0)]
-        part: Polygon = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
-        result = get_placement_position(nfp, part, (0.0, 0.0), config=config)
-        assert result is not None
-        assert len(result) == 2
-        assert result[1] == 0.0
-
-    def test_box_placement(self):
-        config = NestConfig(placement_type="box")
-        nfp: Polygon = [(10.0, 10.0), (60.0, 10.0), (60.0, 40.0), (10.0, 40.0)]
-        part: Polygon = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
-        result = get_placement_position(nfp, part, (0.0, 0.0), config=config)
-        assert result is not None
-        assert len(result) == 2
-        assert result[0] == 10.0
-        assert result[1] == 10.0
-
-    def test_triangular_nfp(self):
-        config = NestConfig(placement_type="gravity")
-        nfp: Polygon = [(0.0, 10.0), (30.0, 40.0), (60.0, 10.0)]
-        part: Polygon = [(0.0, 0.0), (5.0, 0.0), (5.0, 5.0), (0.0, 5.0)]
-        result = get_placement_position(nfp, part, (0.0, 0.0), config=config)
-        assert result is not None
 
 
 class TestNfpMinkowski:
