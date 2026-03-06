@@ -81,12 +81,6 @@ class NestingLayoutStrategy(LayoutStrategy):
         num_workpieces = len(workpieces)
         logger.debug("Found %d workpiece(s) to nest", num_workpieces)
 
-        if num_workpieces < 2:
-            logger.info(
-                "Nesting requires at least 2 workpieces; skipping layout."
-            )
-            return {}
-
         if context:
             context.set_progress(0.1)
 
@@ -174,12 +168,6 @@ class NestingLayoutStrategy(LayoutStrategy):
 
         num_workpieces = len(workpieces)
         logger.debug("Found %d workpiece(s) to nest", num_workpieces)
-
-        if num_workpieces < 2:
-            logger.info(
-                "Nesting requires at least 2 workpieces; skipping layout."
-            )
-            return {}
 
         cpu_count = os.cpu_count() or 4
         max_workers = max(1, int(cpu_count * 0.9))
