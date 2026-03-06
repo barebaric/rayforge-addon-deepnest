@@ -5,7 +5,6 @@ Implements a nesting layout strategy using the deepnest module.
 from __future__ import annotations
 
 import logging
-import math
 import os
 from typing import (
     Dict,
@@ -45,7 +44,7 @@ class NestingLayoutStrategy(LayoutStrategy):
     Arranges workpieces using a genetic algorithm for optimal nesting.
 
     This strategy uses the deepnest module to find an efficient placement
-    of workpieces on the available stock or work area.
+    of workpieces on the available stock or work area in a unified world space.
     """
 
     def __init__(
@@ -136,9 +135,10 @@ class NestingLayoutStrategy(LayoutStrategy):
             solution.fitness,
         )
 
-        deltas = self._compute_deltas_from_solution(solution)
+        placements = self._extract_placements(solution)
+        deltas = self._compute_deltas_from_placements(placements, workpieces)
 
-        placed_uids = {p["uid"] for p in solution.placements}
+        placed_uids = {p.uid for p in placements}
         self.unplaced_items = [
             wp for wp in workpieces if wp.uid not in placed_uids
         ]
@@ -178,13 +178,9 @@ class NestingLayoutStrategy(LayoutStrategy):
             )
             return {}
 
-        # Calculate max workers (90% of CPU cores)
         cpu_count = os.cpu_count() or 4
         max_workers = max(1, int(cpu_count * 0.9))
 
-        # Adjust population size to match available parallelism for large sets,
-        # ensuring we don't queue more than we can process.
-        # For 200 parts, we want efficiency over diversity.
         population_size = min(max_workers, max(8, int(num_workpieces * 0.5)))
 
         config = NestConfig(
@@ -282,19 +278,20 @@ class NestingLayoutStrategy(LayoutStrategy):
 
     def _get_stock_geometry(self, stock_item: StockItem) -> Optional[Geometry]:
         """
-        Returns geometry for a stock item suitable for nesting.
-
-        Currently returns a rectangle from the world-space bbox.
-        Can be extended to return custom geometry for non-rectangular stock.
+        Returns the stock's world-space geometry exactly.
         """
-        return stock_item.get_world_rect_geometry()
+        geo = stock_item.get_world_geometry()
+        if geo is None or geo.is_empty():
+            geo = stock_item.get_world_rect_geometry()
+
+        if geo is None or geo.is_empty():
+            return None
+
+        return geo
 
     def _get_stock_polygons(self) -> List[tuple[Geometry, str]]:
         """
         Returns a list of (geometry, uid) tuples for all stock items.
-
-        If the selection includes stock items, only those are used.
-        Otherwise, all stock from the document is used.
         """
         selected_stocks = [
             item for item in self.items if isinstance(item, StockItem)
@@ -305,8 +302,8 @@ class NestingLayoutStrategy(LayoutStrategy):
             for idx, stock_item in enumerate(selected_stocks):
                 geo = self._get_stock_geometry(stock_item)
                 if geo and not geo.is_empty():
-                    logger.debug("Using selected stock as sheet %d", idx)
-                    stocks.append((geo, f"stock-{idx}"))
+                    uid = f"stock-{idx}"
+                    stocks.append((geo, uid))
             if stocks:
                 return stocks
 
@@ -317,8 +314,8 @@ class NestingLayoutStrategy(LayoutStrategy):
             for idx, stock_item in enumerate(doc.stock_items):
                 geo = self._get_stock_geometry(stock_item)
                 if geo and not geo.is_empty():
-                    logger.debug("Using stock as sheet %d", idx)
-                    stocks.append((geo, f"stock-{idx}"))
+                    uid = f"stock-{idx}"
+                    stocks.append((geo, uid))
 
         if stocks:
             return stocks
@@ -344,73 +341,10 @@ class NestingLayoutStrategy(LayoutStrategy):
             geometry.line_to(sheet_x + wa_w, sheet_y + wa_h)
             geometry.line_to(sheet_x, sheet_y + wa_h)
             geometry.close_path()
-            logger.debug(
-                "Using machine work area as sheet at ref point: "
-                "(%.2f, %.2f) %.2f x %.2f, origin=%s",
-                sheet_x,
-                sheet_y,
-                wa_w,
-                wa_h,
-                origin.name,
-            )
-            return [(geometry, "machine-workarea")]
+            uid = "machine-workarea"
+            return [(geometry, uid)]
 
         return []
-
-    def _compute_deltas_from_solution(
-        self, solution: NestSolution
-    ) -> Dict[DocItem, Matrix]:
-        deltas: Dict[DocItem, Matrix] = {}
-
-        workpiece_map = {wp.uid: wp for wp in self._collect_workpieces()}
-
-        for placement in solution.placements:
-            uid = placement.get("uid")
-            if not uid or uid not in workpiece_map:
-                continue
-
-            wp = workpiece_map[uid]
-            x = placement.get("x", 0)
-            y = placement.get("y", 0)
-            rotation = placement.get("rotation", 0)
-            sheet_uid = placement.get("sheet_uid")
-
-            if sheet_uid:
-                logger.debug(
-                    "Placing '%s' on sheet '%s' at (%.2f, %.2f)",
-                    uid,
-                    sheet_uid,
-                    x,
-                    y,
-                )
-
-            old_world = wp.get_world_transform()
-            old_scale_w, old_scale_h = old_world.get_abs_scale()
-
-            if old_scale_w <= 0 or old_scale_h <= 0:
-                continue
-
-            center = (old_scale_w / 2, old_scale_h / 2)
-            T = Matrix.translation(x, y)
-            R = Matrix.rotation(rotation, center=center)
-            S = Matrix.scale(old_scale_w, old_scale_h)
-            final_matrix = T @ R @ S
-
-            old_local = wp.matrix
-            if old_local.has_zero_scale():
-                continue
-
-            old_local_inv = old_local.invert()
-            parent_inv = Matrix.identity()
-            if wp.parent:
-                parent_world = wp.parent.get_world_transform()
-                if not parent_world.has_zero_scale():
-                    parent_inv = parent_world.invert()
-
-            delta = parent_inv @ final_matrix @ old_local_inv
-            deltas[wp] = delta
-
-        return deltas
 
     def _compute_deltas_from_placements(
         self,
@@ -418,7 +352,6 @@ class NestingLayoutStrategy(LayoutStrategy):
         workpieces: List[WorkPiece],
     ) -> Dict[DocItem, Matrix]:
         deltas: Dict[DocItem, Matrix] = {}
-
         workpiece_map = {wp.uid: wp for wp in workpieces}
 
         for placement in placements:
@@ -428,58 +361,43 @@ class NestingLayoutStrategy(LayoutStrategy):
                 continue
 
             wp = workpiece_map[uid]
-            rotation = placement.rotation
-            placement_x = placement.x
-            placement_y = placement.y
-
-            geo = wp.get_world_geometry()
-            if geo is None or geo.is_empty():
-                logger.warning("Workpiece '%s' has no geometry", uid)
-                continue
-
-            geo_polygons = geo.to_polygons(tolerance=0.1)
-            if not geo_polygons:
-                logger.warning("Workpiece '%s' has no polygons", uid)
-                continue
-
-            all_points = [p for poly in geo_polygons for p in poly]
-            if not all_points:
-                logger.warning("Workpiece '%s' has no points", uid)
-                continue
-
             old_world = wp.get_world_transform()
+            world_geo = wp.get_world_geometry()
 
-            angle_rad = math.radians(rotation)
-            cos_a = math.cos(angle_rad)
-            sin_a = math.sin(angle_rad)
+            if world_geo is None or world_geo.is_empty():
+                continue
 
-            rotated_points = [
-                (x * cos_a - y * sin_a, x * sin_a + y * cos_a)
-                for x, y in all_points
-            ]
-            rotated_min_x = min(p[0] for p in rotated_points)
-            rotated_min_y = min(p[1] for p in rotated_points)
+            # 1. Translate the original world shape so its
+            #    min_x/min_y is at (0,0)
+            # This replicates Deepnest's normalize_polygons()
+            min_x, min_y, _, _ = world_geo.rect()
+            T_to_origin = Matrix.translation(-min_x, -min_y)
 
-            tx = placement_x - rotated_min_x
-            ty = placement_y - rotated_min_y
+            # 2. Delta Rotation from the Genetic Algorithm
+            R = Matrix.rotation(placement.rotation)
 
-            T = Matrix.translation(tx, ty)
-            R = Matrix.rotation(rotation)
-            final_matrix = T @ R @ old_world
+            # 3. Apply steps 1 & 2 to find the new bounding box's
+            #    min corner.
+            # Deepnest re-normalizes the rotated shape so its
+            # minimum lies at the exact coordinates of placement.x
+            # and placement.y on the sheet.
+            temp_geo = world_geo.copy()
+            temp_geo.transform((R @ T_to_origin).to_4x4_numpy())
+            rot_min_x, rot_min_y, _, _ = temp_geo.rect()
 
-            logger.debug(
-                "Placement '%s': pos=(%.2f, %.2f) rot=%.1f, "
-                "rotated_min=(%.2f, %.2f), translate=(%.2f, %.2f)",
-                uid,
-                placement_x,
-                placement_y,
-                rotation,
-                rotated_min_x,
-                rotated_min_y,
-                tx,
-                ty,
+            # 4. Translate so the minimum corner lands on the target placement
+            T_to_placement = Matrix.translation(
+                placement.x - rot_min_x, placement.y - rot_min_y
             )
 
+            # 5. Compose the full affine transformation mapping the original
+            # world shape to the final nested world shape.
+            M_world_delta = T_to_placement @ R @ T_to_origin
+
+            # 6. Apply to the old world matrix
+            new_world = M_world_delta @ old_world
+
+            # 7. Convert the new world matrix back into local delta
             old_local = wp.matrix
             if old_local.has_zero_scale():
                 continue
@@ -491,7 +409,7 @@ class NestingLayoutStrategy(LayoutStrategy):
                 if not parent_world.has_zero_scale():
                     parent_inv = parent_world.invert()
 
-            delta = parent_inv @ final_matrix @ old_local_inv
+            delta = parent_inv @ new_world @ old_local_inv
             deltas[wp] = delta
 
         if len(placements) > 1:
@@ -500,44 +418,47 @@ class NestingLayoutStrategy(LayoutStrategy):
         return deltas
 
     def _handle_unplaced_items(self, deltas: Dict[DocItem, Matrix]) -> None:
-        doc = self.items[0].doc if self.items else None
-        stock_item = None
-        if doc:
-            stock_items = doc.stock_items
-            stock_item = stock_items[0] if stock_items else None
-
-        if not stock_item or not stock_item.bbox:
+        sheets = self._get_stock_polygons()
+        if not sheets:
             return
 
-        stock_bbox = stock_item.bbox
+        sheet_right = float("-inf")
+        sheet_top = float("inf")
+        for geo, _ in sheets:
+            min_x, min_y, max_x, max_y = geo.rect()
+            sheet_right = max(sheet_right, max_x)
+            sheet_top = min(sheet_top, min_y)
 
-        unplaced_bboxes = [
-            self._get_item_world_bbox(item) for item in self.unplaced_items
-        ]
+        if sheet_right == float("-inf"):
+            return
+
+        unplaced_bboxes = []
+        for item in self.unplaced_items:
+            get_bbox = getattr(item, "get_geometry_world_bbox", None)
+            if get_bbox:
+                bbox = get_bbox()
+                if bbox:
+                    unplaced_bboxes.append(bbox)
+            else:
+                x, y, w, h = item.bbox
+                unplaced_bboxes.append((x, y, x + w, y + h))
+
         valid_bboxes = [b for b in unplaced_bboxes if b]
         if not valid_bboxes:
             return
 
         min_x = min(b[0] for b in valid_bboxes)
-        max_y = max(b[3] for b in valid_bboxes)
+        min_y = min(b[1] for b in valid_bboxes)
 
-        target_x = stock_bbox[0] + stock_bbox[2] + self.spacing * 4
-        target_y = stock_bbox[1] + stock_bbox[3]
+        target_x = sheet_right + self.spacing * 4
+        target_y = sheet_top
 
         dx = target_x - min_x
-        dy = target_y - max_y
+        dy = target_y - min_y
 
         for item in self.unplaced_items:
             old_world = item.get_world_transform()
-            tx_old, ty_old = old_world.decompose()[:2]
-
-            final_x = tx_old + dx
-            final_y = ty_old + dy
-
-            T = Matrix.translation(final_x, final_y)
-            scale_w, scale_h = old_world.get_abs_scale()
-            S = Matrix.scale(scale_w, scale_h)
-            final_matrix = T @ S
+            final_matrix = Matrix.translation(dx, dy) @ old_world
 
             old_local = item.matrix
             if old_local.has_zero_scale():

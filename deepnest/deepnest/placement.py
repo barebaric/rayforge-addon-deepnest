@@ -120,51 +120,88 @@ def _any_overlap(
     return False
 
 
+def _is_contained(
+    inner_polys: List[Polygon], outer_poly: Polygon, scale: int
+) -> bool:
+    """
+    Check if inner_polys are strictly contained within outer_poly using
+    Clipper difference.
+    If (Inner - Outer) is not empty, then Inner is sticking out.
+    """
+    try:
+        clipper = pyclipper.Pyclipper()
+        # Add outer as CLIP (to subtract it)
+        clipper.AddPath(to_clipper(outer_poly, scale), pyclipper.PT_CLIP, True)
+
+        # Add inners as SUBJECT
+        for p in inner_polys:
+            clipper.AddPath(to_clipper(p, scale), pyclipper.PT_SUBJECT, True)
+
+        # Execute Difference: Subject - Clip
+        result = clipper.Execute(
+            pyclipper.CT_DIFFERENCE,
+            pyclipper.PFT_NONZERO,
+            pyclipper.PFT_NONZERO,
+        )
+
+        if not result:
+            return True
+
+        # Allow for negligible floating point noise
+        total_area = sum(abs(pyclipper.Area(path)) for path in result)
+        return total_area < 100
+
+    except Exception:
+        return False
+
+
 def _get_combined_ifp(
     sheet: Polygon,
     part_polygons: List[Polygon],
     config: NestConfig,
-) -> Optional[Polygon]:
+) -> List[Polygon]:
     """Get the combined IFP for all polygons in a part using intersection."""
     if not part_polygons:
-        return None
+        return []
 
-    combined_ifp = None
+    combined_ifps = []
     scale = config.clipper_scale
 
     for poly in part_polygons:
-        ifp = inner_fit_polygon(sheet, poly, config)
-        if ifp is None:
-            return None
+        ifps = inner_fit_polygon(sheet, poly, config)
+        if not ifps:
+            return []
 
-        if combined_ifp is None:
-            combined_ifp = ifp
+        if not combined_ifps:
+            combined_ifps = ifps
         else:
             try:
                 clipper = pyclipper.Pyclipper()
-                clipper.AddPath(
-                    to_clipper(combined_ifp, scale),
-                    pyclipper.PT_CLIP,
-                    True,
-                )
-                clipper.AddPath(
-                    to_clipper(ifp, scale),
-                    pyclipper.PT_SUBJECT,
-                    True,
-                )
+                for c_ifp in combined_ifps:
+                    clipper.AddPath(
+                        to_clipper(c_ifp, scale),
+                        pyclipper.PT_SUBJECT,
+                        True,
+                    )
+                for ifp in ifps:
+                    clipper.AddPath(
+                        to_clipper(ifp, scale),
+                        pyclipper.PT_CLIP,
+                        True,
+                    )
                 result = clipper.Execute(
                     pyclipper.CT_INTERSECTION,
                     pyclipper.PFT_NONZERO,
                     pyclipper.PFT_NONZERO,
                 )
                 if result:
-                    combined_ifp = from_clipper(result[0], scale)
+                    combined_ifps = [from_clipper(p, scale) for p in result]
                 else:
-                    return None
+                    return []
             except Exception:
-                return None
+                return []
 
-    return combined_ifp
+    return combined_ifps
 
 
 def _generate_perimeter_candidates(
@@ -561,7 +598,7 @@ def _find_valid_position(
 
 def _apply_gravity(
     placements: List[Placement],
-    sheet_bounds: Rect,
+    sheet_poly: Polygon,
     spacing: float,
     clipper_scale: int,
 ) -> List[Placement]:
@@ -572,6 +609,8 @@ def _apply_gravity(
     """
     if len(placements) < 2:
         return placements
+
+    sheet_bounds = polygon_bounds(sheet_poly)
 
     for _ in range(10):
         any_moved = False
@@ -590,6 +629,7 @@ def _apply_gravity(
                 placement.polygons,
                 other_polys,
                 sheet_bounds,
+                sheet_poly,
                 "y",
                 spacing,
                 clipper_scale,
@@ -615,6 +655,7 @@ def _apply_gravity(
                 placement.polygons,
                 other_polys,
                 sheet_bounds,
+                sheet_poly,
                 "x",
                 spacing,
                 clipper_scale,
@@ -636,6 +677,7 @@ def _find_max_slide(
     polys: List[Polygon],
     other_polys_list: List[List[Polygon]],
     sheet_bounds: Rect,
+    sheet_poly: Polygon,
     axis: str,
     spacing: float,
     scale: int,
@@ -659,9 +701,6 @@ def _find_max_slide(
     if max_slide < 0.01:
         return 0
 
-    if not other_polys_list:
-        return max_slide
-
     best_slide = 0.0
     step = max_slide
 
@@ -677,6 +716,8 @@ def _find_max_slide(
             test_polys = translate_polygons(polys, 0, -test_slide)
 
         if _any_overlap(test_polys, other_polys_list):
+            step /= 2
+        elif not _is_contained(test_polys, sheet_poly, scale):
             step /= 2
         else:
             best_slide = test_slide
@@ -767,8 +808,8 @@ def place_parts(
                 )
                 continue
 
-            ifp = _get_combined_ifp(sheet.polygon, normalized, config)
-            if ifp is None:
+            ifps = _get_combined_ifp(sheet.polygon, normalized, config)
+            if not ifps:
                 logger.debug(
                     "Part '%s' has no valid IFP on sheet '%s'",
                     uid,
@@ -778,33 +819,40 @@ def place_parts(
 
             sheets_with_valid_ifp += 1
 
-            best_pos = _find_valid_position(
-                ifp,
-                normalized,
-                sheet_placed_polys[sheet.uid],
-                config,
-                spacing,
-                spatial_grid=sheet_spatial_grids[sheet.uid],
-                sheet_world_offset=(
-                    sheet.world_offset_x,
-                    sheet.world_offset_y,
-                ),
-            )
+            best_pos_for_sheet = None
+            best_score_for_sheet = float("inf")
 
-            if best_pos is None:
-                continue
+            for ifp in ifps:
+                pos = _find_valid_position(
+                    ifp,
+                    normalized,
+                    sheet_placed_polys[sheet.uid],
+                    config,
+                    spacing,
+                    spatial_grid=sheet_spatial_grids[sheet.uid],
+                    sheet_world_offset=(
+                        sheet.world_offset_x,
+                        sheet.world_offset_y,
+                    ),
+                )
 
-            rel_x = best_pos[0] - sheet.world_offset_x
-            rel_y = best_pos[1] - sheet.world_offset_y
+                if pos is not None:
+                    rel_x = pos[0] - sheet.world_offset_x
+                    rel_y = pos[1] - sheet.world_offset_y
 
-            if config.placement_type == "gravity":
-                score = rel_y + rel_x * 0.001
-            else:
-                score = rel_x + rel_y * 0.001
+                    if config.placement_type == "gravity":
+                        score = rel_y + rel_x * 0.001
+                    else:
+                        score = rel_x + rel_y * 0.001
 
-            if score < best_score:
-                best_score = score
-                best_placement = (best_pos, sheet)
+                    if score < best_score_for_sheet:
+                        best_score_for_sheet = score
+                        best_pos_for_sheet = pos
+
+            if best_pos_for_sheet is not None:
+                if best_score_for_sheet < best_score:
+                    best_score = best_score_for_sheet
+                    best_placement = (best_pos_for_sheet, sheet)
 
         if best_placement is None:
             logger.warning(
@@ -831,6 +879,15 @@ def place_parts(
             polygons=world_placed_group,
             sheet_uid=sheet.uid,
         )
+
+        logger.debug(
+            "place_parts: placed '%s' on sheet '%s' at (%.2f, %.2f)",
+            uid,
+            sheet.uid,
+            best_pos[0],
+            best_pos[1],
+        )
+
         placements.append(placement)
         sheet_placed_polys[sheet.uid].append(world_placed_group)
         sheet_spatial_grids[sheet.uid].insert(
@@ -850,17 +907,13 @@ def place_parts(
         if not sheet_placements:
             continue
 
-        bounds = polygon_bounds(sheet.polygon)
-        offset_bounds = (
-            bounds[0] + sheet.world_offset_x,
-            bounds[1] + sheet.world_offset_y,
-            bounds[2] + sheet.world_offset_x,
-            bounds[3] + sheet.world_offset_y,
-        )
+        sheet_world_poly = translate_polygons(
+            [sheet.polygon], sheet.world_offset_x, sheet.world_offset_y
+        )[0]
 
         # In-place modification of placement objects
         _apply_gravity(
-            sheet_placements, offset_bounds, spacing, config.clipper_scale
+            sheet_placements, sheet_world_poly, spacing, config.clipper_scale
         )
 
     fitness = _calculate_fitness(placements, num_parts)

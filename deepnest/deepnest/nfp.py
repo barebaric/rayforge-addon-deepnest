@@ -15,7 +15,6 @@ import pyclipper
 
 from rayforge.core.geo.minkowski import (
     convolve_point_sequences,
-    calculate_input_scale,
     minkowski_sum_convex,
 )
 from rayforge.core.geo.polygon import (
@@ -27,6 +26,8 @@ from rayforge.core.geo.polygon import (
     to_clipper,
     from_clipper,
     is_convex,
+    clean_polygon,
+    convex_hull,
 )
 from .models import NestConfig
 
@@ -40,7 +41,7 @@ _NFP_CACHE: Dict[
 ] = {}
 _IFP_CACHE: Dict[
     Tuple[Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]],
-    Optional[Polygon],
+    List[Polygon],
 ] = {}
 
 
@@ -190,21 +191,18 @@ def no_fit_polygon(
 
     # 4. Compute if missing
     if base_nfps is None:
-        scale = calculate_input_scale([norm_static, norm_orbiting])
+        # Use consistent scaling from config to avoid precision mismatches
+        scale = config.clipper_scale
         try:
-            static_path = to_clipper(norm_static, int(scale))
-            orbiting_path = to_clipper(norm_orbiting, int(scale))
+            static_path = to_clipper(norm_static, scale)
+            orbiting_path = to_clipper(norm_orbiting, scale)
 
             if len(static_path) < 3 or len(orbiting_path) < 3:
                 base_nfps = []
             elif is_convex(norm_static) and is_convex(norm_orbiting):
-                base_nfps = _nfp_convex_fast(
-                    static_path, orbiting_path, int(scale)
-                )
+                base_nfps = _nfp_convex_fast(static_path, orbiting_path, scale)
             else:
-                base_nfps = _nfp_minkowski(
-                    static_path, orbiting_path, int(scale)
-                )
+                base_nfps = _nfp_minkowski(static_path, orbiting_path, scale)
         except Exception as e:
             logger.debug("NFP calculation failed: %s", e)
             base_nfps = []
@@ -216,8 +214,6 @@ def no_fit_polygon(
         return []
 
     # 5. Translate cached result to world coordinates
-    # Because Minkowski sum is translation-invariant:
-    #   NFP(A_world, B) = NFP(A_norm, B) + Translation_A
     translated_nfps = []
     for nfp in base_nfps:
         translated_nfps.append([(p[0] + sx, p[1] + sy) for p in nfp])
@@ -227,71 +223,147 @@ def no_fit_polygon(
 
 def inner_fit_polygon(
     bin_polygon: Polygon, part_polygon: Polygon, config: NestConfig
-) -> Optional[Polygon]:
+) -> List[Polygon]:
     """
     Calculate the Inner Fit Polygon (IFP) for placing a part inside a bin.
     """
     if not bin_polygon or len(bin_polygon) < 3:
-        return None
+        return []
     if not part_polygon or len(part_polygon) < 3:
-        return None
+        return []
+
+    # Ensure inputs are clean
+    clean_bin = clean_polygon(bin_polygon, 0.001)
+    if not clean_bin:
+        clean_bin = bin_polygon
+    clean_part = clean_polygon(part_polygon, 0.001)
+    if not clean_part:
+        clean_part = part_polygon
 
     # 1. Normalize
-    norm_bin, bx, by = _normalize_poly(bin_polygon)
-    norm_part, px, py = _normalize_poly(part_polygon)
+    norm_bin, bx, by = _normalize_poly(clean_bin)
+    norm_part, px, py = _normalize_poly(clean_part)
 
     # 2. Cache Key
     b_key = _poly_to_key(norm_bin)
     p_key = _poly_to_key(norm_part)
     cache_key = (b_key, p_key)
 
-    base_ifp = False  # Use False to distinguish from None (which means no fit)
+    base_ifps = None
     with _cache_lock:
         if cache_key in _IFP_CACHE:
-            base_ifp = _IFP_CACHE[cache_key]
+            base_ifps = _IFP_CACHE[cache_key]
 
-    if base_ifp is False:
+    if base_ifps is None:
         bin_bounds = polygon_bounds(norm_bin)
         part_bounds = polygon_bounds(norm_part)
 
-        bin_min_x, bin_min_y, bin_max_x, bin_max_y = bin_bounds
-        part_min_x, part_min_y, part_max_x, part_max_y = part_bounds
+        bin_width = bin_bounds[2] - bin_bounds[0]
+        bin_height = bin_bounds[3] - bin_bounds[1]
+        part_width = part_bounds[2] - part_bounds[0]
+        part_height = part_bounds[3] - part_bounds[1]
 
-        part_width = part_max_x - part_min_x
-        part_height = part_max_y - part_min_y
-
-        bin_width = bin_max_x - bin_min_x
-        bin_height = bin_max_y - bin_min_y
-
-        if part_width > bin_width + 1e-6 or part_height > bin_height + 1e-6:
-            base_ifp = None
+        # Quick reject if bounding box doesn't fit
+        if part_width > bin_width + 1e-4 or part_height > bin_height + 1e-4:
+            base_ifps = []
         else:
-            ifp_min_x = bin_min_x - part_min_x
-            ifp_min_y = bin_min_y - part_min_y
-            ifp_max_x = bin_max_x - part_max_x
-            ifp_max_y = bin_max_y - part_max_y
+            scale = config.clipper_scale
 
-            if ifp_min_x > ifp_max_x or ifp_min_y > ifp_max_y:
-                base_ifp = None
-            else:
-                base_ifp = [
-                    (ifp_min_x, ifp_min_y),
-                    (ifp_max_x, ifp_min_y),
-                    (ifp_max_x, ifp_max_y),
-                    (ifp_min_x, ifp_max_y),
+            bin_clip = to_clipper(norm_bin, scale)
+            part_clip = to_clipper(norm_part, scale)
+
+            # Negate part for Minkowski Sum
+            part_neg = [(-p[0], -p[1]) for p in part_clip]
+
+            # Generate Solid No-Go Zones via Convex Hull Sweeps
+            # Ensures a solid band around the edge, solving
+            # "hollow trace" issues
+
+            clipper_union = pyclipper.Pyclipper()
+
+            # 1. Add Part at every vertex (Corner caps)
+            for v in bin_clip:
+                translated_part = [
+                    (p[0] + v[0], p[1] + v[1]) for p in part_neg
                 ]
+                clipper_union.AddPath(
+                    translated_part, pyclipper.PT_SUBJECT, True
+                )
+
+            # 2. Add Convex Hull Sweep for every edge
+            # Convert part_neg to float for convex_hull calculation
+            part_neg_float = [(float(p[0]), float(p[1])) for p in part_neg]
+
+            for i in range(len(bin_clip)):
+                p1 = bin_clip[i - 1]
+                p2 = bin_clip[i]
+
+                # Create cloud of points: Part at P1 + Part at P2
+                points = []
+                for p in part_neg_float:
+                    points.append((p[0] + p1[0], p[1] + p1[1]))
+                    points.append((p[0] + p2[0], p[1] + p2[1]))
+
+                # The Convex Hull of these points is the solid sweep
+                # of the part along the segment
+                hull = convex_hull(points)
+                hull_int = [(int(p[0]), int(p[1])) for p in hull]
+
+                clipper_union.AddPath(hull_int, pyclipper.PT_SUBJECT, True)
+
+            try:
+                # Union of all solid sweeps
+                no_go_zones = clipper_union.Execute(
+                    pyclipper.CT_UNION,
+                    pyclipper.PFT_NONZERO,
+                    pyclipper.PFT_NONZERO,
+                )
+            except Exception as e:
+                logger.debug("IFP Union failed: %s", e)
+                no_go_zones = None
+
+            if no_go_zones is None:
+                base_ifps = []
+            else:
+                # IFP = Bin - NoGoZones
+                clipper_diff = pyclipper.Pyclipper()
+                clipper_diff.AddPath(bin_clip, pyclipper.PT_SUBJECT, True)
+                if no_go_zones:
+                    for nogo in no_go_zones:
+                        clipper_diff.AddPath(nogo, pyclipper.PT_CLIP, True)
+
+                try:
+                    ifp_solution = clipper_diff.Execute(
+                        pyclipper.CT_DIFFERENCE,
+                        pyclipper.PFT_NONZERO,
+                        pyclipper.PFT_NONZERO,
+                    )
+                except Exception as e:
+                    logger.debug("IFP Difference failed: %s", e)
+                    ifp_solution = []
+
+                if ifp_solution:
+                    base_ifps = []
+                    for path in ifp_solution:
+                        if len(path) >= 3:
+                            base_ifps.append(from_clipper(path, scale))
+                else:
+                    base_ifps = []
 
         with _cache_lock:
-            _IFP_CACHE[cache_key] = base_ifp
+            _IFP_CACHE[cache_key] = base_ifps
 
-    if base_ifp is None:
-        return None
+    if not base_ifps:
+        return []
 
     # 3. Translate back to world coordinates
-    # For IFP, the locus shift is exactly (T_bin - T_part)
     tx = bx - px
     ty = by - py
-    return [(pt[0] + tx, pt[1] + ty) for pt in base_ifp]
+    translated_ifps = []
+    for ifp in base_ifps:
+        translated_ifps.append([(pt[0] + tx, pt[1] + ty) for pt in ifp])
+
+    return translated_ifps
 
 
 def get_placement_position(
@@ -325,7 +397,6 @@ def _gravity_placement(
 ) -> Optional[Point]:
     """
     Find placement that minimizes Y first, then X (gravity effect).
-    This tends to pack parts toward the bottom-left.
     """
     best_point = None
     best_y = float("inf")

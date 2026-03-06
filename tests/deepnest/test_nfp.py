@@ -119,7 +119,7 @@ class TestInnerFitPolygon:
         config = NestConfig()
         part: Polygon = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
         result = inner_fit_polygon([], part, config=config)
-        assert result is None
+        assert result == []
 
     def test_empty_part(self):
         config = NestConfig()
@@ -130,7 +130,7 @@ class TestInnerFitPolygon:
             (0.0, 100.0),
         ]
         result = inner_fit_polygon(bin_poly, [], config=config)
-        assert result is None
+        assert result == []
 
     def test_part_larger_than_bin(self):
         config = NestConfig()
@@ -147,7 +147,7 @@ class TestInnerFitPolygon:
             (0.0, 100.0),
         ]
         result = inner_fit_polygon(bin_poly, part, config=config)
-        assert result is None or len(result) < 3
+        assert result == []
 
     def test_small_part_in_large_bin(self):
         config = NestConfig()
@@ -160,7 +160,7 @@ class TestInnerFitPolygon:
         part: Polygon = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
         result = inner_fit_polygon(bin_poly, part, config=config)
         assert result is not None
-        assert len(result) >= 3
+        assert len(result) >= 1
 
     def test_returns_largest_nfp(self):
         config = NestConfig()
@@ -173,7 +173,7 @@ class TestInnerFitPolygon:
         part: Polygon = [(0.0, 0.0), (20.0, 0.0), (20.0, 20.0), (0.0, 20.0)]
         result = inner_fit_polygon(bin_poly, part, config=config)
         assert result is not None
-        assert len(result) >= 3
+        assert len(result) >= 1
 
 
 class TestGetPlacementPosition:
