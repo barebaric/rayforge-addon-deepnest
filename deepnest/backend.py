@@ -40,7 +40,21 @@ def register_actions(window):
     def on_activate(action, param):
         editor = window.doc_editor
         items = list(window.surface.get_selected_items())
-        editor.layout.layout_nesting(items)
+        items_to_layout = editor.layout.get_items_to_layout(items)
+
+        if not items_to_layout:
+            return
+
+        strategy = NestingLayoutStrategy(
+            items=items_to_layout,
+            spacing=0.0,
+            rotations=36,
+            population_size=10,
+            merge_lines=True,
+        )
+        editor.layout.execute_layout(
+            strategy, _("Nesting Layout"), use_async=True
+        )
 
     action.connect("activate", on_activate)
     window.add_action(action)
