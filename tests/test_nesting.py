@@ -23,8 +23,9 @@ from rayforge.core.source_asset import SourceAsset
 from rayforge.core.vectorization_spec import PassthroughSpec
 from rayforge.image import SVG_RENDERER
 
-from deepnest.nesting import NestingLayoutStrategy
 from deepnest.deepnest import Placement
+from deepnest.deepnest.models import NestConfig
+from deepnest.nesting import NestingLayoutStrategy
 
 
 def _create_workpiece_with_geometry(
@@ -469,9 +470,10 @@ class TestNestingPlacementWithTransformedStock:
         wp1 = _create_workpiece_with_geometry(doc, wp_geo, "wp1")
         wp2 = _create_workpiece_with_geometry(doc, wp_geo, "wp2")
 
-        strategy = NestingLayoutStrategy([stock, wp1, wp2])
-        strategy.rotations = 4
-        strategy.population_size = 4
+        strategy = NestingLayoutStrategy(
+            [stock, wp1, wp2],
+            config=NestConfig(rotations=4, population_size=4),
+        )
 
         # Get the stock polygons that would be passed to deepnest
         stock_polygons = strategy._get_stock_polygons()
@@ -519,9 +521,10 @@ class TestNestingPlacementWithTransformedStock:
         wp1 = _create_workpiece_with_geometry(doc, wp_geo, "wp1")
         wp2 = _create_workpiece_with_geometry(doc, wp_geo, "wp2")
 
-        strategy = NestingLayoutStrategy([stock, wp1, wp2])
-        strategy.rotations = 4
-        strategy.population_size = 4
+        strategy = NestingLayoutStrategy(
+            [stock, wp1, wp2],
+            config=NestConfig(rotations=4, population_size=4),
+        )
 
         # Get the stock polygons that would be passed to deepnest
         stock_polygons = strategy._get_stock_polygons()
@@ -571,9 +574,10 @@ class TestNestingPlacementWithTransformedStock:
         wp1 = _create_workpiece_with_geometry(doc, wp_geo, "wp1")
         wp2 = _create_workpiece_with_geometry(doc, wp_geo, "wp2")
 
-        strategy = NestingLayoutStrategy([stock, wp1, wp2])
-        strategy.rotations = 4
-        strategy.population_size = 4
+        strategy = NestingLayoutStrategy(
+            [stock, wp1, wp2],
+            config=NestConfig(rotations=4, population_size=4),
+        )
 
         # Get the stock polygons that would be passed to deepnest
         stock_polygons = strategy._get_stock_polygons()
@@ -657,9 +661,10 @@ class TestNestingPlacementWithTransformedStock:
         # It should be placed at (50, 50) after nesting (the stock position)
         # NOT at (100, 100) (double offset)
 
-        strategy = NestingLayoutStrategy([stock, wp1, wp2])
-        strategy.rotations = 4
-        strategy.population_size = 4
+        strategy = NestingLayoutStrategy(
+            [stock, wp1, wp2],
+            config=NestConfig(rotations=4, population_size=4),
+        )
 
         deltas = strategy.calculate_deltas()
 
@@ -720,9 +725,10 @@ class TestNestingPlacementWithTransformedStock:
         wp1 = _create_workpiece_with_geometry(doc, wp_geo, "wp1")
         wp2 = _create_workpiece_with_geometry(doc, wp_geo, "wp2")
 
-        strategy = NestingLayoutStrategy([stock, wp1, wp2])
-        strategy.rotations = 4
-        strategy.population_size = 4
+        strategy = NestingLayoutStrategy(
+            [stock, wp1, wp2],
+            config=NestConfig(rotations=4, population_size=4),
+        )
 
         deltas = strategy.calculate_deltas()
 
@@ -781,9 +787,10 @@ class TestNestingPlacementWithTransformedStock:
         wp1 = _create_workpiece_with_geometry(doc, wp_geo, "wp1")
         wp2 = _create_workpiece_with_geometry(doc, wp_geo, "wp2")
 
-        strategy = NestingLayoutStrategy([stock, wp1, wp2])
-        strategy.rotations = 4
-        strategy.population_size = 4
+        strategy = NestingLayoutStrategy(
+            [stock, wp1, wp2],
+            config=NestConfig(rotations=4, population_size=4),
+        )
 
         # Get the stock polygons that would be passed to deepnest
         stock_polygons = strategy._get_stock_polygons()
@@ -831,9 +838,10 @@ class TestNestingPlacementWithTransformedStock:
         wp1 = _create_workpiece_with_geometry(doc, wp_geo, "wp1")
         wp2 = _create_workpiece_with_geometry(doc, wp_geo, "wp2")
 
-        strategy = NestingLayoutStrategy([stock, wp1, wp2])
-        strategy.rotations = 4
-        strategy.population_size = 4
+        strategy = NestingLayoutStrategy(
+            [stock, wp1, wp2],
+            config=NestConfig(rotations=4, population_size=4),
+        )
 
         deltas = strategy.calculate_deltas()
 
@@ -885,9 +893,10 @@ class TestNestingPlacementWithTransformedStock:
         wp1 = _create_workpiece_with_geometry(doc, wp_geo, "wp1")
         wp2 = _create_workpiece_with_geometry(doc, wp_geo, "wp2")
 
-        strategy = NestingLayoutStrategy([stock, wp1, wp2])
-        strategy.rotations = 4
-        strategy.population_size = 4
+        strategy = NestingLayoutStrategy(
+            [stock, wp1, wp2],
+            config=NestConfig(rotations=4, population_size=4),
+        )
 
         deltas = strategy.calculate_deltas()
 
@@ -938,9 +947,10 @@ class TestNestingPlacementWithTransformedStock:
         wp1 = _create_workpiece_with_geometry(doc, wp_geo, "wp1")
         wp2 = _create_workpiece_with_geometry(doc, wp_geo, "wp2")
 
-        strategy = NestingLayoutStrategy([stock, wp1, wp2])
-        strategy.rotations = 4
-        strategy.population_size = 4
+        strategy = NestingLayoutStrategy(
+            [stock, wp1, wp2],
+            config=NestConfig(rotations=4, population_size=4),
+        )
 
         deltas = strategy.calculate_deltas()
 
@@ -993,9 +1003,10 @@ class TestNestingPlacementWithTransformedStock:
         wp1 = _create_workpiece_with_geometry(doc, wp_geo, "wp1")
         wp2 = _create_workpiece_with_geometry(doc, wp_geo, "wp2")
 
-        strategy = NestingLayoutStrategy([stock, wp1, wp2])
-        strategy.rotations = 4
-        strategy.population_size = 4
+        strategy = NestingLayoutStrategy(
+            [stock, wp1, wp2],
+            config=NestConfig(rotations=4, population_size=4),
+        )
 
         deltas = strategy.calculate_deltas()
 
@@ -1044,9 +1055,10 @@ class TestNestingPlacementWithTransformedStock:
         wp1 = _create_workpiece_with_geometry(doc, wp_geo, "wp1")
         wp2 = _create_workpiece_with_geometry(doc, wp_geo, "wp2")
 
-        strategy = NestingLayoutStrategy([stock, wp1, wp2])
-        strategy.rotations = 4
-        strategy.population_size = 4
+        strategy = NestingLayoutStrategy(
+            [stock, wp1, wp2],
+            config=NestConfig(rotations=4, population_size=4),
+        )
 
         deltas = strategy.calculate_deltas()
 
@@ -1104,9 +1116,10 @@ class TestPlacementDeltaComputation:
 
         wp = _create_workpiece_with_geometry(doc, wp_geo, "wp1")
 
-        strategy = NestingLayoutStrategy([stock, wp])
-        strategy.rotations = 4
-        strategy.population_size = 4
+        strategy = NestingLayoutStrategy(
+            [stock, wp],
+            config=NestConfig(rotations=4, population_size=4),
+        )
 
         # Placement.x and Placement.y are world space coordinates
         # (including sheet offset), not relative to normalized sheet

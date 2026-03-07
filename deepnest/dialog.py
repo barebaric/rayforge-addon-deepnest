@@ -1,0 +1,124 @@
+"""
+Dialog for configuring nesting layout settings.
+"""
+
+import gettext
+import logging
+from pathlib import Path
+
+from gi.repository import Adw, Gtk
+
+from rayforge.ui_gtk.icons import get_icon
+from rayforge.ui_gtk.shared.patched_dialog_window import PatchedMessageDialog
+from rayforge.ui_gtk.shared.unit_spin_row import UnitSpinRowHelper
+from .deepnest.models import NestConfig
+
+_localedir = Path(__file__).parent.parent / "locales"
+_t = gettext.translation("deepnest", localedir=_localedir, fallback=True)
+_ = _t.gettext
+
+logger = logging.getLogger(__name__)
+
+
+class NestingSettingsDialog(PatchedMessageDialog):
+    def __init__(
+        self,
+        parent,
+        initial_spacing: float = 0.1,
+        initial_merge_lines: bool = True,
+        **kwargs,
+    ):
+        super().__init__(
+            transient_for=parent,
+            modal=True,
+            heading=_("Nesting Layout Settings"),
+            **kwargs,
+        )
+        self.add_response("cancel", _("Cancel"))
+        self.add_response("start", _("Start Nesting"))
+        self.set_default_response("start")
+        self.set_close_response("cancel")
+
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+
+        warning_box = Gtk.Box(
+            halign=Gtk.Align.CENTER,
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=6,
+        )
+        warning_box.add_css_class("warning-box")
+        warning_box.set_margin_start(6)
+        warning_box.set_margin_end(6)
+        warning_icon = get_icon("warning-symbolic")
+        warning_icon.add_css_class("warning")
+        warning_label = Gtk.Label(
+            label=_(
+                "Nesting can consume significant memory and take a long time "
+                "depending on the number and complexity of shapes. It is "
+                "recommended to start with a small number of shapes before "
+                "scaling up."
+            ),
+            wrap=True,
+            halign=Gtk.Align.CENTER,
+        )
+        warning_label.add_css_class("warning-label")
+        warning_box.append(warning_icon)
+        warning_box.append(warning_label)
+        main_box.append(warning_box)
+
+        group = Adw.PreferencesGroup()
+
+        spacing_adj = Gtk.Adjustment(
+            lower=0.0,
+            upper=50.0,
+            step_increment=0.1,
+            page_increment=1.0,
+        )
+        self.spacing_row = Adw.SpinRow(
+            title=_("Spacing"),
+            subtitle=_("Distance between nested shapes"),
+            adjustment=spacing_adj,
+            digits=2,
+        )
+        group.add(self.spacing_row)
+
+        self.spacing_helper = UnitSpinRowHelper(
+            spin_row=self.spacing_row,
+            quantity="length",
+            max_value_in_base=50.0,
+        )
+        self.spacing_helper.set_value_in_base_units(initial_spacing)
+
+        self.merge_row = Adw.SwitchRow(
+            title=_("Merge Lines"),
+            subtitle=_("Combine connected line segments for cleaner output"),
+        )
+        self.merge_row.set_active(initial_merge_lines)
+        group.add(self.merge_row)
+
+        main_box.append(group)
+
+        self.set_extra_child(main_box)
+
+    def get_spacing(self) -> float:
+        value = self.spacing_helper.get_value_in_base_units()
+        logger.debug("get_spacing: helper returned %.3f", value)
+        return value
+
+    def get_merge_lines(self) -> bool:
+        value = self.merge_row.get_active()
+        logger.debug("get_merge_lines: row returned %s", value)
+        return value
+
+    def get_config(self) -> NestConfig:
+        spacing = self.get_spacing()
+        merge_lines = self.get_merge_lines()
+        logger.debug(
+            "Dialog returning config: spacing=%.3f, merge_lines=%s",
+            spacing,
+            merge_lines,
+        )
+        return NestConfig(
+            spacing=spacing,
+            merge_lines=merge_lines,
+        )

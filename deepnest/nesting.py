@@ -51,18 +51,18 @@ class NestingLayoutStrategy(LayoutStrategy):
     def __init__(
         self,
         items: Sequence[DocItem],
-        spacing: float = 0.0,
-        rotations: int = 72,  # 5 degree increments
-        population_size: int = 10,
-        simplify_tolerance: float = 0.1,
+        config: Optional[NestConfig] = None,
         **kwargs,
     ):
         super().__init__(items, **kwargs)
-        self.spacing = spacing
-        self.rotations = rotations
-        self.population_size = population_size
-        self.simplify_tolerance = simplify_tolerance
+        self.config = config or NestConfig()
         self.unplaced_items: list[DocItem] = []
+        logger.debug(
+            "NestingLayoutStrategy created with config: spacing=%.3f, "
+            "merge_lines=%s",
+            self.config.spacing,
+            self.config.merge_lines,
+        )
 
     def calculate_deltas(
         self, context: Optional[ExecutionContext] = None
@@ -93,14 +93,22 @@ class NestingLayoutStrategy(LayoutStrategy):
         if context:
             context.set_progress(0.1)
 
-        population_size = min(self.population_size, max(4, num_workpieces))
+        population_size = min(
+            self.config.population_size, max(4, num_workpieces)
+        )
         config = NestConfig(
-            spacing=self.spacing,
-            rotations=self.rotations,
+            spacing=self.config.spacing,
+            rotations=self.config.rotations,
             population_size=population_size,
-            simplify_tolerance=self.simplify_tolerance,
+            simplify_tolerance=self.config.simplify_tolerance,
+            merge_lines=self.config.merge_lines,
         )
 
+        logger.debug(
+            "Creating DeepNest with config: spacing=%.3f, merge_lines=%s",
+            config.spacing,
+            config.merge_lines,
+        )
         nester = DeepNest(config)
 
         for wp in workpieces:
@@ -198,12 +206,18 @@ class NestingLayoutStrategy(LayoutStrategy):
         population_size = min(max_workers, max(8, int(num_workpieces * 0.5)))
 
         config = NestConfig(
-            spacing=self.spacing,
-            rotations=self.rotations,
+            spacing=self.config.spacing,
+            rotations=self.config.rotations,
             population_size=population_size,
-            simplify_tolerance=self.simplify_tolerance,
+            simplify_tolerance=self.config.simplify_tolerance,
+            merge_lines=self.config.merge_lines,
         )
 
+        logger.debug(
+            "Creating DeepNest with config: spacing=%.3f, merge_lines=%s",
+            config.spacing,
+            config.merge_lines,
+        )
         nester = DeepNest(config)
 
         for wp in workpieces:
@@ -362,31 +376,6 @@ class NestingLayoutStrategy(LayoutStrategy):
                     wp.uid,
                 )
                 return False
-
-        if initial_area is None or not initially_on_stock:
-            return True
-
-        new_area = self._calculate_placements_bounding_box_area(solution)
-        if new_area is not None and new_area > initial_area:
-            logger.warning(
-                "Rejecting nesting solution: bounding box area "
-                "%.2f > initial %.2f",
-                new_area,
-                initial_area,
-            )
-            return False
-
-        return True
-
-        new_area = self._calculate_placements_bounding_box_area(solution)
-        if new_area is not None and new_area > initial_area:
-            logger.warning(
-                "Rejecting nesting solution: bounding box area "
-                "%.2f > initial %.2f",
-                new_area,
-                initial_area,
-            )
-            return False
 
         return True
 
@@ -599,7 +588,7 @@ class NestingLayoutStrategy(LayoutStrategy):
         min_x = min(b[0] for b in valid_bboxes)
         min_y = min(b[1] for b in valid_bboxes)
 
-        target_x = sheet_right + self.spacing * 4
+        target_x = sheet_right + self.config.spacing * 4
         target_y = sheet_top
 
         dx = target_x - min_x
