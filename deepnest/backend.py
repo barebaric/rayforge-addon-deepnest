@@ -39,7 +39,7 @@ def register_layout_strategies(layout_registry):
         NestingLayoutStrategy,
         name="nesting",
         action_id="layout-nesting",
-        label=_("Nesting Layout"),
+        label=_("Auto Layout (Nesting)"),
         shortcut="<Ctrl><Alt>n",
         addon_name=ADDON_NAME,
     )

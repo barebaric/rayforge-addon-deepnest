@@ -33,7 +33,7 @@ def register_menu_items(menu_registry):
     """Register menu items with the menu registry."""
     menu_registry.register(
         item_id="deepnest.layout_nesting",
-        label=_("Nesting Layout"),
+        label=_("Auto Layout (Nesting)"),
         action="win.layout-nesting",
         menu="Arrange",
         priority=50,

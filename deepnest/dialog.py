@@ -42,7 +42,8 @@ class NestingSettingsDialog(PatchedMessageDialog):
         main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
 
         warning_box = Gtk.Box(
-            halign=Gtk.Align.CENTER,
+            hexpand=True,
+            halign=Gtk.Align.FILL,
             orientation=Gtk.Orientation.HORIZONTAL,
             spacing=6,
         )
@@ -59,7 +60,8 @@ class NestingSettingsDialog(PatchedMessageDialog):
                 "scaling up."
             ),
             wrap=True,
-            halign=Gtk.Align.CENTER,
+            hexpand=True,
+            halign=Gtk.Align.FILL,
         )
         warning_label.add_css_class("warning-label")
         warning_box.append(warning_icon)

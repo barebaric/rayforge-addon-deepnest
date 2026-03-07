@@ -1,33 +1,33 @@
-# French translations for PACKAGE package.
-# Copyright (C) 2026 THE PACKAGE'S COPYRIGHT HOLDER
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
 # This file is distributed under the same license as the PACKAGE package.
-# Automatically generated, 2026.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 #
+#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-03-07 14:27+0100\n"
-"PO-Revision-Date: 2026-03-03 23:03+0100\n"
-"Last-Translator: Automatically generated\n"
-"Language-Team: none\n"
-"Language: fr\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
 #: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
 msgid "Nesting Layout Settings"
-msgstr "Paramètres de disposition en nidification"
+msgstr ""
 
 #: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
 msgid "Cancel"
-msgstr "Annuler"
+msgstr ""
 
 #: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
 msgid "Start Nesting"
-msgstr "Démarrer la nidification"
+msgstr ""
 
 #: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
 msgid ""
@@ -35,31 +35,28 @@ msgid ""
 "number and complexity of shapes. It is recommended to start with a small "
 "number of shapes before scaling up."
 msgstr ""
-"La nidification peut consommer beaucoup de mémoire et prendre beaucoup de "
-"temps selon le nombre et la complexité des formes. Il est recommandé de "
-"commencer avec un petit nombre de formes avant de passer à l'échelle."
 
 #: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
 msgid "Spacing"
-msgstr "Espacement"
+msgstr ""
 
 #: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
 msgid "Distance between nested shapes"
-msgstr "Distance entre les formes nichées"
+msgstr ""
 
 #: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
 msgid "Merge Lines"
-msgstr "Fusionner les lignes"
+msgstr ""
 
 #: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
 msgid "Combine connected line segments for cleaner output"
-msgstr "Combiner les segments de ligne connectés pour une sortie plus propre"
+msgstr ""
 
 #: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/frontend.py
 #: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/backend.py
 msgid "Auto Layout (Nesting)"
-msgstr "Disposition automatique (Nidification)"
+msgstr ""
 
 #: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/backend.py
 msgid "Nesting Layout"
-msgstr "Disposition en nidification"
+msgstr ""
