@@ -34,7 +34,8 @@ msgid ""
 "number and complexity of shapes. It is recommended to start with a small "
 "number of shapes before scaling up."
 msgstr ""
-"排样可能会消耗大量内存，并且根据形状的数量和复杂程度可能需要很长时间。建议在扩展之前先从少量形状开始。"
+"排样可能会消耗大量内存，并且根据形状的数量和复杂程度可能需要很长时间。建议在"
+"扩展之前先从少量形状开始。"
 
 #: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
 msgid "Spacing"

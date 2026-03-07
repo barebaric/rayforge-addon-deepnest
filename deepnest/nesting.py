@@ -247,7 +247,9 @@ class NestingLayoutStrategy(LayoutStrategy):
             context.set_progress(0.2)
 
         solution = await nester.async_nest(
-            task_manager, max_parallel_tasks=max_workers
+            task_manager,
+            context=context,
+            max_parallel_tasks=max_workers,
         )
 
         if not solution:

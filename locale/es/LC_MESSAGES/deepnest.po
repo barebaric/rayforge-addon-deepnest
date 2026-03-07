@@ -35,9 +35,9 @@ msgid ""
 "number and complexity of shapes. It is recommended to start with a small "
 "number of shapes before scaling up."
 msgstr ""
-"El anidamiento puede consumir mucha memoria y tardar mucho tiempo dependiendo "
-"del número y complejidad de las formas. Se recomienda comenzar con un pequeño "
-"número de formas antes de escalar."
+"El anidamiento puede consumir mucha memoria y tardar mucho tiempo "
+"dependiendo del número y complejidad de las formas. Se recomienda comenzar "
+"con un pequeño número de formas antes de escalar."
 
 #: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
 msgid "Spacing"

@@ -33,6 +33,7 @@ from .nfp import clear_nfp_cache
 
 if TYPE_CHECKING:
     from rayforge.shared.tasker.manager import TaskManager
+    from rayforge.shared.tasker.context import ExecutionContext
 
 logger = logging.getLogger(__name__)
 
@@ -405,6 +406,7 @@ class DeepNest:
     async def async_nest(
         self,
         task_manager: "TaskManager",
+        context: "Optional[ExecutionContext]" = None,
         num_generations: Optional[int] = None,
         generations_without_improvement_limit: int = 5,
         max_parallel_tasks: int = 4,
@@ -543,6 +545,7 @@ class DeepNest:
                         self.config,
                         key=task_key,
                         when_done=on_individual_done,
+                        visible=False,
                     )
 
             if state.done:
@@ -555,6 +558,26 @@ class DeepNest:
 
                 # Check if entire generation is complete
                 active_count = len(state.pending_tasks)
+
+            # Report progress
+            if context:
+                processed_count = sum(
+                    1 for ind in ga.population if ind.fitness is not None
+                )
+                total_individuals = len(ga.population)
+                generation_progress = (
+                    processed_count / total_individuals
+                    if total_individuals > 0
+                    else 0
+                )
+                overall_progress = (
+                    state.generation + generation_progress
+                ) / num_generations
+                context.set_progress(0.2 + 0.8 * overall_progress)
+                context.set_message(
+                    f"Nesting: Generation {state.generation + 1}/"
+                    f"{num_generations}"
+                )
 
             if state.done:
                 break

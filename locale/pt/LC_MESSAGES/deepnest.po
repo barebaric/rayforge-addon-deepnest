@@ -35,9 +35,9 @@ msgid ""
 "number and complexity of shapes. It is recommended to start with a small "
 "number of shapes before scaling up."
 msgstr ""
-"O aninhamento pode consumir muita memória e demorar muito tempo dependendo do "
-"número e complexidade das formas. É recomendado começar com um pequeno número "
-"de formas antes de escalar."
+"O aninhamento pode consumir muita memória e demorar muito tempo dependendo "
+"do número e complexidade das formas. É recomendado começar com um pequeno "
+"número de formas antes de escalar."
 
 #: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
 msgid "Spacing"
