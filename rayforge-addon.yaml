@@ -3,8 +3,17 @@ display_name: "Deepnest"
 description: "Nesting layout functionality using deepnest algorithm"
 api_version: 2
 author:
-  name: "Rayforge Team"
+  name: "Samuel Abels"
   email: "noreply@rayforge.org"
 provides:
   backend: "deepnest.backend"
   frontend: "deepnest.frontend"
+license:
+  name: "BSL-1.1"
+  required: true
+  purchase_url: "https://barebaric.gumroad.com/l/rayforge-addon-deepnest"
+  product_id: "A56heLPCXT6uPUpnmpnZYQ=="
+  patreon_tier_ids:
+    - "27607724"
+    - "27607754"
+    - "27607776"

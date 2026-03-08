@@ -1,0 +1,39 @@
+Business Source License 1.1
+
+Parameters
+
+Licensor:             Samuel Abels
+Licensed Work:        Rayforge Deepnest Addon
+                      The Licensed Work is (c) 2025 Samuel Abels
+Additional Use Grant: You may use the Licensed Work when the Licensed
+                      Work is used in conjunction with Rayforge, and
+                      you have a valid license for the Licensed Work
+                      (purchased from https://barebaric.gumroad.com or
+                      via Patreon at https://www.patreon.com/barebaric).
+
+                      You may use the Licensed Work for non-production
+                      purposes (e.g., evaluation, testing, development)
+                      without a license for a period of 30 days.
+
+Change Date:          2029-01-01
+
+Change License:       MIT License
+
+Effective Date:       2025-03-08
+
+Licensor Contact:     https://rayforge.org
+
+Terms
+
+The Licensor hereby grants you the right to copy, modify, create derivative
+works, redistribute, and make non-production use of the Licensed Work
+provided the above conditions are met.
+
+Any use of the Licensed Work in production requires that you have a valid
+license as specified in the Additional Use Grant above.
+
+If you use the Licensed Work in production after the Change Date, the
+Change License will apply to your use of the Licensed Work.
+
+See https://mariadb.com/bsl11/ for the full text of the Business Source
+License 1.1.
