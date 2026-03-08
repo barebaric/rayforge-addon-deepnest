@@ -4,7 +4,7 @@ from deepnest.deepnest.nfp import (
     _nfp_minkowski,
 )
 from deepnest.deepnest.models import NestConfig
-from rayforge.core.geo.polygon import Polygon
+from rayforge.core.geo.types import Polygon
 
 
 class TestNoFitPolygon:

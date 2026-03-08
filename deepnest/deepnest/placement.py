@@ -5,7 +5,7 @@ import pyclipper
 import math
 import numpy as np
 
-from rayforge.core.geo import Rect
+from rayforge.core.geo.types import Rect, Point
 from rayforge.core.geo.polygon import (
     point_in_polygon_numpy,
     polygon_area_numpy,
@@ -256,11 +256,11 @@ def _get_combined_ifp(
 
 def _generate_perimeter_candidates(
     placed_polys_list: List[List[NumpyPolygon]],
-    part_bounds: Tuple[float, float, float, float],
+    part_bounds: Rect,
     spacing: float,
-    ifp_bounds: Tuple[float, float, float, float],
+    ifp_bounds: Rect,
     max_candidates: int = 500,
-) -> List[Tuple[float, float]]:
+) -> List[Point]:
     """
     Generate candidate positions along the perimeter of already-placed parts.
     Uses edge-aligned positions for optimal packing: positions that place
@@ -309,11 +309,11 @@ def _generate_perimeter_candidates(
 
 
 def _generate_bottom_left_candidates(
-    ifp_bounds: Tuple[float, float, float, float],
-    part_bounds: Tuple[float, float, float, float],
+    ifp_bounds: Rect,
+    part_bounds: Rect,
     spacing: float,
     step_size: float = 10.0,
-) -> List[Tuple[float, float]]:
+) -> List[Point]:
     """
     Generate candidates along the bottom and left edges of the IFP.
     This implements the classic bottom-left placement heuristic.
@@ -346,11 +346,11 @@ def _generate_bottom_left_candidates(
 
 
 def _generate_grid_candidates(
-    ifp_bounds: Tuple[float, float, float, float],
-    part_bounds: Tuple[float, float, float, float],
+    ifp_bounds: Rect,
+    part_bounds: Rect,
     spacing: float,
     step_size: float = 10.0,
-) -> List[Tuple[float, float]]:
+) -> List[Point]:
     """
     Generate candidates on a grid across the entire IFP.
     This ensures gaps between parts are searched, not just perimeters.
@@ -390,10 +390,10 @@ def _generate_grid_candidates(
 
 
 def _filter_candidates_multi_resolution(
-    candidates: List[Tuple[float, float]],
-    ifp_bounds: Tuple[float, float, float, float],
+    candidates: List[Point],
+    ifp_bounds: Rect,
     min_dist: float,
-) -> List[Tuple[float, float]]:
+) -> List[Point]:
     """
     Filter candidate positions using a grid-based multi-resolution search
     approach. Enforces a minimum distance between checked candidates to
@@ -434,10 +434,10 @@ def _find_valid_position_fast(
     config: NestConfig,
     spacing: float = 0.1,
     spatial_grid: Optional[SpatialGrid] = None,
-    sheet_world_offset: Tuple[float, float] = (0.0, 0.0),
+    sheet_world_offset: Point = (0.0, 0.0),
     part_hulls: Optional[List[NumpyPolygon]] = None,
     placed_hulls_list: Optional[List[List[NumpyPolygon]]] = None,
-) -> Optional[Tuple[float, float]]:
+) -> Optional[Point]:
     """
     Fast placement using bottom-left and perimeter-based heuristics.
     Avoids expensive NFP subtraction by testing candidate positions directly.
@@ -527,7 +527,7 @@ def _find_valid_position_fast(
                 first_bounds[3],
             )
 
-    def score_candidate(pos: Tuple[float, float]) -> float:
+    def score_candidate(pos: Point) -> float:
         return _score_position(pos[0], pos[1])
 
     sorted_candidates = sorted(candidates, key=score_candidate)
@@ -600,10 +600,10 @@ def _find_valid_position(
     config: NestConfig,
     spacing: float = 0.1,
     spatial_grid: Optional[SpatialGrid] = None,
-    sheet_world_offset: Tuple[float, float] = (0.0, 0.0),
+    sheet_world_offset: Point = (0.0, 0.0),
     part_hulls: Optional[List[NumpyPolygon]] = None,
     placed_hulls_list: Optional[List[List[NumpyPolygon]]] = None,
-) -> Optional[Tuple[float, float]]:
+) -> Optional[Point]:
     """
     Find a valid position in the IFP where part doesn't overlap placed parts.
     Uses fast bottom-left/perimeter heuristic, falls back to NFP subtraction

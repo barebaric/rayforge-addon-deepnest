@@ -18,8 +18,6 @@ from rayforge.core.geo.minkowski import (
     minkowski_sum_convex,
 )
 from rayforge.core.geo.polygon import (
-    Polygon,
-    IntPolygon,
     to_clipper,
     from_clipper,
     is_convex,
@@ -27,6 +25,7 @@ from rayforge.core.geo.polygon import (
     convex_hull,
     polygon_bounds,
 )
+from rayforge.core.geo.types import IntPolygon, Point, Polygon
 from .models import NestConfig
 
 logger = logging.getLogger(__name__)
@@ -38,11 +37,11 @@ MAX_CACHE_SIZE = 2000
 
 _cache_lock = threading.Lock()
 _NFP_CACHE: Dict[
-    Tuple[Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]],
+    Tuple[Tuple[Point, ...], Tuple[Point, ...]],
     List[Polygon],
 ] = {}
 _IFP_CACHE: Dict[
-    Tuple[Tuple[Tuple[float, float], ...], Tuple[Tuple[float, float], ...]],
+    Tuple[Tuple[Point, ...], Tuple[Point, ...]],
     List[Polygon],
 ] = {}
 
@@ -60,7 +59,7 @@ def _manage_cache_size(cache: Dict):
         cache.clear()
 
 
-def _poly_to_key(poly: Polygon) -> Tuple[Tuple[float, float], ...]:
+def _poly_to_key(poly: Polygon) -> Tuple[Point, ...]:
     """Converts a polygon to a robust hashable key by rounding coordinates."""
     return tuple((round(p[0], 4), round(p[1], 4)) for p in poly)
 

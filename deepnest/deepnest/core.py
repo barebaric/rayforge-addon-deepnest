@@ -8,7 +8,6 @@ import numpy as np
 
 from rayforge.core.geo import Geometry
 from rayforge.core.geo.polygon import (
-    Polygon,
     polygon_area_numpy,
     polygon_bounds_numpy,
     polygon_offset,
@@ -17,6 +16,7 @@ from rayforge.core.geo.polygon import (
     normalize_polygons,
 )
 from rayforge.core.geo.simplify import simplify_points
+from rayforge.core.geo.types import Polygon
 from .genetic import GeneticAlgorithm
 from .models import (
     NestConfig,
