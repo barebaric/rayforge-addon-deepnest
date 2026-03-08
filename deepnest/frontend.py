@@ -91,4 +91,4 @@ def register_actions(window):
         dialog.present()
 
     action.connect("activate", on_activate)
-    window.add_action(action)
+    window.action_registry.register("layout-nesting", action, ADDON_NAME)
