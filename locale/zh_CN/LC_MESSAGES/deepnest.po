@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-07 14:27+0100\n"
+"POT-Creation-Date: 2026-03-09 20:10+0100\n"
 "PO-Revision-Date: 2026-03-03 23:03+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -54,7 +54,6 @@ msgid "Combine connected line segments for cleaner output"
 msgstr "合并连接的线段以获得更清晰的输出"
 
 #: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/frontend.py
-#: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/backend.py
 msgid "Auto Layout (Nesting)"
 msgstr "自动布局（排样）"
 
