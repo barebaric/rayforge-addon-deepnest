@@ -1,7 +1,7 @@
 """
 Frontend entry point for deepnest addon.
 
-Registers menu items and actions with the main application.
+Registers actions with menu placement.
 """
 
 import gettext
@@ -13,6 +13,7 @@ from gi.repository import Gio
 
 from rayforge.context import get_context
 from rayforge.core.hooks import hookimpl
+from rayforge.ui_gtk.action_registry import MenuPlacement, ToolbarPlacement
 from .backend import execute_nesting
 from .deepnest.models import NestConfig
 from .dialog import NestingSettingsDialog
@@ -29,24 +30,12 @@ _session_config: Optional[NestConfig] = None
 
 
 @hookimpl
-def register_menu_items(menu_registry):
-    """Register menu items with the menu registry."""
-    menu_registry.register(
-        item_id="deepnest.layout_nesting",
-        label=_("Auto Layout (Nesting)"),
-        action="win.layout-nesting",
-        menu="Arrange",
-        priority=50,
-        addon_name=ADDON_NAME,
-    )
-
-
-@hookimpl
-def register_actions(window):
-    """Register window actions."""
+def register_actions(action_registry):
+    """Register action with menu and toolbar placement."""
     action = Gio.SimpleAction.new("layout-nesting", None)
 
     def on_activate(action, param):
+        window = action_registry.window
         editor = window.doc_editor
         items = list(window.surface.get_selected_items())
         items_to_layout = editor.layout.get_items_to_layout(items)
@@ -91,4 +80,13 @@ def register_actions(window):
         dialog.present()
 
     action.connect("activate", on_activate)
-    window.action_registry.register("layout-nesting", action, ADDON_NAME)
+    action_registry.register(
+        action_name="layout-nesting",
+        action=action,
+        addon_name=ADDON_NAME,
+        label=_("Auto Layout (Nesting)"),
+        icon_name="auto-layout-symbolic",
+        shortcut="<Ctrl><Alt>n",
+        menu=MenuPlacement(menu_id="arrange", priority=50),
+        toolbar=ToolbarPlacement(group="arrange", priority=50),
+    )
