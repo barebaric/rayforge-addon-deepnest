@@ -5,6 +5,8 @@ This conftest ensures that producers and steps are registered
 with their respective registries before tests run.
 """
 
+from typing import cast
+
 import pytest
 from rayforge.doceditor.layout.registry import layout_registry
 
@@ -22,14 +24,15 @@ def register_deepnest():
     Automatically register deepnest producers and steps
     for all tests in this addon.
 
-    This also prevents ensure_addons_loaded() from loading via
-    AddonManager, which would register classes from a different
-    module path (rayforge_addons.*) causing isinstance() checks
-    to fail in tests.
+    This also prevents the context from loading addons by setting
+    _addon_mgr to a sentinel, which prevents the property from
+    creating a real AddonManager.
     """
-    from rayforge import worker_init
+    from rayforge.context import get_context
+    from rayforge.addon_mgr.addon_manager import AddonManager
 
-    worker_init._worker_addons_loaded = True
+    context = get_context()
+    context._addon_mgr = cast(AddonManager, object())
 
     _register_layout()
     yield
