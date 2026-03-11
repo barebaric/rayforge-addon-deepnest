@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-09 20:10+0100\n"
+"POT-Creation-Date: 2026-03-11 10:59+0100\n"
 "PO-Revision-Date: 2026-03-03 23:03+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -17,19 +17,19 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
+#: deepnest/dialog.py
 msgid "Nesting Layout Settings"
 msgstr "Paramètres de disposition en nidification"
 
-#: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
+#: deepnest/dialog.py
 msgid "Cancel"
 msgstr "Annuler"
 
-#: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
+#: deepnest/dialog.py
 msgid "Start Nesting"
 msgstr "Démarrer la nidification"
 
-#: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
+#: deepnest/dialog.py
 msgid ""
 "Nesting can consume significant memory and take a long time depending on the "
 "number and complexity of shapes. It is recommended to start with a small "
@@ -39,26 +39,26 @@ msgstr ""
 "temps selon le nombre et la complexité des formes. Il est recommandé de "
 "commencer avec un petit nombre de formes avant de passer à l'échelle."
 
-#: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
+#: deepnest/dialog.py
 msgid "Spacing"
 msgstr "Espacement"
 
-#: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
+#: deepnest/dialog.py
 msgid "Distance between nested shapes"
 msgstr "Distance entre les formes nichées"
 
-#: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
+#: deepnest/dialog.py
 msgid "Merge Lines"
 msgstr "Fusionner les lignes"
 
-#: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/dialog.py
+#: deepnest/dialog.py
 msgid "Combine connected line segments for cleaner output"
 msgstr "Combiner les segments de ligne connectés pour une sortie plus propre"
 
-#: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/frontend.py
+#: deepnest/frontend.py
 msgid "Auto Layout (Nesting)"
 msgstr "Disposition automatique (Nidification)"
 
-#: rayforge/builtin_addons/rayforge-addon-deepnest/deepnest/backend.py
+#: deepnest/backend.py
 msgid "Nesting Layout"
 msgstr "Disposition en nidification"
