@@ -141,13 +141,26 @@ class NestingLayoutStrategy(LayoutStrategy):
         if not solution:
             logger.warning("Nesting failed to find a solution.")
             self.unplaced_items = list(workpieces)
-            return {}
+            deltas: Dict[DocItem, Matrix] = {}
+            self._handle_unplaced_items(deltas)
+            return deltas
+
+        placed_uids = {p.get("uid") for p in solution.placements}
+        self.unplaced_items = [
+            wp for wp in workpieces if wp.uid not in placed_uids
+        ]
 
         if not self._is_solution_better_than_initial(
             solution, workpieces, initial_area, initially_on_stock
         ):
-            self.unplaced_items = list(workpieces)
-            return {}
+            deltas: Dict[DocItem, Matrix] = {}
+            if self.unplaced_items:
+                logger.warning(
+                    "%d workpiece(s) could not be placed",
+                    len(self.unplaced_items),
+                )
+                self._handle_unplaced_items(deltas)
+            return deltas
 
         logger.debug(
             "Nesting complete: %d placement(s), fitness=%.4f",
@@ -157,11 +170,6 @@ class NestingLayoutStrategy(LayoutStrategy):
 
         placements = self._extract_placements(solution)
         deltas = self._compute_deltas_from_placements(placements, workpieces)
-
-        placed_uids = {p.uid for p in placements}
-        self.unplaced_items = [
-            wp for wp in workpieces if wp.uid not in placed_uids
-        ]
 
         if self.unplaced_items:
             logger.warning(
@@ -255,13 +263,26 @@ class NestingLayoutStrategy(LayoutStrategy):
         if not solution:
             logger.warning("Nesting found no solution")
             self.unplaced_items = list(workpieces)
-            return {}
+            deltas: Dict[DocItem, Matrix] = {}
+            self._handle_unplaced_items(deltas)
+            return deltas
+
+        placed_uids = {p.get("uid") for p in solution.placements}
+        self.unplaced_items = [
+            wp for wp in workpieces if wp.uid not in placed_uids
+        ]
 
         if not self._is_solution_better_than_initial(
             solution, workpieces, initial_area, initially_on_stock
         ):
-            self.unplaced_items = list(workpieces)
-            return {}
+            deltas: Dict[DocItem, Matrix] = {}
+            if self.unplaced_items:
+                logger.warning(
+                    "%d workpiece(s) could not be placed",
+                    len(self.unplaced_items),
+                )
+                self._handle_unplaced_items(deltas)
+            return deltas
 
         logger.debug(
             "Nesting complete: %d placement(s), fitness=%.4f",
@@ -271,11 +292,6 @@ class NestingLayoutStrategy(LayoutStrategy):
 
         placements = self._extract_placements(solution)
         deltas = self._compute_deltas_from_placements(placements, workpieces)
-
-        placed_uids = {p.uid for p in placements}
-        self.unplaced_items = [
-            wp for wp in workpieces if wp.uid not in placed_uids
-        ]
 
         if self.unplaced_items:
             logger.warning(
@@ -369,15 +385,30 @@ class NestingLayoutStrategy(LayoutStrategy):
     ) -> bool:
         placed_uids = {p.get("uid") for p in solution.placements}
         now_placed = {wp for wp in workpieces if wp.uid in placed_uids}
+        num_initially_on_stock = len(initially_on_stock)
+        num_now_placed = len(now_placed)
 
-        for wp in initially_on_stock:
-            if wp not in now_placed:
-                logger.warning(
-                    "Rejecting nesting solution: workpiece '%s' was on stock "
-                    "but is now unplaced",
-                    wp.uid,
-                )
-                return False
+        if (
+            num_initially_on_stock == len(workpieces)
+            and num_now_placed < num_initially_on_stock
+        ):
+            logger.info(
+                "Rejecting nesting: originally %d on stock, new places %d",
+                num_initially_on_stock,
+                num_now_placed,
+            )
+            return False
+
+        if num_now_placed == num_initially_on_stock and num_now_placed > 0:
+            new_area = self._calculate_placements_bounding_box_area(solution)
+            if new_area is not None and initial_area is not None:
+                if new_area > initial_area:
+                    logger.info(
+                        "Rejecting nesting: same items, new area %.2f > %.2f",
+                        new_area,
+                        initial_area,
+                    )
+                    return False
 
         return True
 
