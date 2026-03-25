@@ -52,14 +52,23 @@ def register_actions(action_registry):
         if _session_config is not None:
             initial_spacing = _session_config.spacing
             initial_merge_lines = _session_config.merge_lines
+            initial_constrain_rotation = _session_config.rotations == 1
+            initial_flip_h = _session_config.flip_h
+            initial_flip_v = _session_config.flip_v
         else:
             initial_spacing = default_spacing
             initial_merge_lines = True
+            initial_constrain_rotation = False
+            initial_flip_h = False
+            initial_flip_v = False
 
         dialog = NestingSettingsDialog(
             window,
             initial_spacing=initial_spacing,
             initial_merge_lines=initial_merge_lines,
+            initial_constrain_rotation=initial_constrain_rotation,
+            initial_flip_h=initial_flip_h,
+            initial_flip_v=initial_flip_v,
         )
 
         def on_dialog_response(dialog, response_id):
@@ -69,9 +78,13 @@ def register_actions(action_registry):
                 config = dialog.get_config()
                 _session_config = config
                 logger.debug(
-                    "Saved session config: spacing=%.3f, merge_lines=%s",
+                    "Saved session config: spacing=%.3f, merge_lines=%s, "
+                    "rotations=%d, flip_h=%s, flip_v=%s",
                     config.spacing,
                     config.merge_lines,
+                    config.rotations,
+                    config.flip_h,
+                    config.flip_v,
                 )
                 execute_nesting(editor, items_to_layout, config)
             dialog.close()

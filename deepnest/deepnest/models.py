@@ -20,6 +20,8 @@ class NestConfig:
             gaps between placed parts. Set to 0 for tight packing.
         rotations: Number of discrete rotation angles to evaluate. The angular
             step is 360/rotations degrees (e.g., 36 = 10° steps).
+        flip_h: If True, allow horizontal flipping of parts during nesting.
+        flip_v: If True, allow vertical flipping of parts during nesting.
         population_size: Number of candidate solutions (individuals) in the
             genetic algorithm population. Larger populations explore more
             possibilities but take longer per generation.
@@ -42,6 +44,8 @@ class NestConfig:
     simplify_tolerance: float = 0.1
     spacing: float = 0.0
     rotations: int = 36
+    flip_h: bool = False
+    flip_v: bool = False
     population_size: int = 10
     mutation_rate: int = 30
     merge_lines: bool = True
@@ -83,7 +87,8 @@ class Placement:
     rotation: float
     polygons: List[np.ndarray]
     sheet_uid: Optional[str] = None
-    # Rotated convex hulls corresponding to the polygons
+    flip_h: bool = False
+    flip_v: bool = False
     hulls: List[np.ndarray] = field(default_factory=list)
 
 

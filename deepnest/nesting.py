@@ -99,6 +99,8 @@ class NestingLayoutStrategy(LayoutStrategy):
         config = NestConfig(
             spacing=self.config.spacing,
             rotations=self.config.rotations,
+            flip_h=self.config.flip_h,
+            flip_v=self.config.flip_v,
             population_size=population_size,
             simplify_tolerance=self.config.simplify_tolerance,
             merge_lines=self.config.merge_lines,
@@ -216,15 +218,21 @@ class NestingLayoutStrategy(LayoutStrategy):
         config = NestConfig(
             spacing=self.config.spacing,
             rotations=self.config.rotations,
+            flip_h=self.config.flip_h,
+            flip_v=self.config.flip_v,
             population_size=population_size,
             simplify_tolerance=self.config.simplify_tolerance,
             merge_lines=self.config.merge_lines,
         )
 
         logger.debug(
-            "Creating DeepNest with config: spacing=%.3f, merge_lines=%s",
+            "Creating DeepNest with config: spacing=%.3f, merge_lines=%s, "
+            "rotations=%d, flip_h=%s, flip_v=%s",
             config.spacing,
             config.merge_lines,
+            config.rotations,
+            config.flip_h,
+            config.flip_v,
         )
         nester = DeepNest(config)
 
@@ -316,6 +324,8 @@ class NestingLayoutStrategy(LayoutStrategy):
                     rotation=p["rotation"],
                     polygons=p["polygons"],
                     sheet_uid=p.get("sheet_uid"),
+                    flip_h=p.get("flip_h", False),
+                    flip_v=p.get("flip_v", False),
                 )
             )
         return placements
@@ -376,6 +386,29 @@ class NestingLayoutStrategy(LayoutStrategy):
 
         return on_stock
 
+    def _items_overlap(self, workpieces: list[WorkPiece]) -> bool:
+        """Check if any workpieces overlap in their current positions."""
+        bboxes = []
+        for wp in workpieces:
+            geo = wp.get_world_geometry()
+            if geo is None or geo.is_empty():
+                continue
+            min_x, min_y, max_x, max_y = geo.rect()
+            bboxes.append((wp.uid, min_x, min_y, max_x, max_y))
+
+        for i in range(len(bboxes)):
+            for j in range(i + 1, len(bboxes)):
+                uid1, x1, y1, x2, y2 = bboxes[i]
+                uid2, a1, b1, a2, b2 = bboxes[j]
+                if x1 < a2 and x2 > a1 and y1 < b2 and y2 > b1:
+                    logger.debug(
+                        "Workpieces %s and %s overlap initially",
+                        uid1,
+                        uid2,
+                    )
+                    return True
+        return False
+
     def _is_solution_better_than_initial(
         self,
         solution: NestSolution,
@@ -400,6 +433,13 @@ class NestingLayoutStrategy(LayoutStrategy):
             return False
 
         if num_now_placed == num_initially_on_stock and num_now_placed > 0:
+            if self._items_overlap(workpieces):
+                logger.info(
+                    "Accepting nesting: initial items overlap, "
+                    "any valid placement is an improvement"
+                )
+                return True
+
             new_area = self._calculate_placements_bounding_box_area(solution)
             if new_area is not None and initial_area is not None:
                 if new_area > initial_area:
@@ -547,28 +587,34 @@ class NestingLayoutStrategy(LayoutStrategy):
             # 2. Delta Rotation from the Genetic Algorithm
             R = Matrix.rotation(placement.rotation)
 
-            # 3. Apply steps 1 & 2 to find the new bounding box's
+            # 3. Delta Flip from the Genetic Algorithm
+            F = Matrix.scale(
+                -1.0 if placement.flip_h else 1.0,
+                -1.0 if placement.flip_v else 1.0,
+            )
+
+            # 4. Apply steps 1, 2 & 3 to find the new bounding box's
             #    min corner.
-            # Deepnest re-normalizes the rotated shape so its
+            # Deepnest re-normalizes the transformed shape so its
             # minimum lies at the exact coordinates of placement.x
             # and placement.y on the sheet.
             temp_geo = world_geo.copy()
-            temp_geo.transform((R @ T_to_origin).to_4x4_numpy())
+            temp_geo.transform((F @ R @ T_to_origin).to_4x4_numpy())
             rot_min_x, rot_min_y, _, _ = temp_geo.rect()
 
-            # 4. Translate so the minimum corner lands on the target placement
+            # 5. Translate so the minimum corner lands on the target placement
             T_to_placement = Matrix.translation(
                 placement.x - rot_min_x, placement.y - rot_min_y
             )
 
-            # 5. Compose the full affine transformation mapping the original
+            # 6. Compose the full affine transformation mapping the original
             # world shape to the final nested world shape.
-            M_world_delta = T_to_placement @ R @ T_to_origin
+            M_world_delta = T_to_placement @ F @ R @ T_to_origin
 
-            # 6. Apply to the old world matrix
+            # 7. Apply to the old world matrix
             new_world = M_world_delta @ old_world
 
-            # 7. Convert the new world matrix back into local delta
+            # 8. Convert the new world matrix back into local delta
             old_local = wp.matrix
             if old_local.has_zero_scale():
                 continue

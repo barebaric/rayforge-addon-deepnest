@@ -14,6 +14,7 @@ from rayforge.core.geo.polygon import (
     polygons_intersect_numpy,
     rotate_polygons_numpy,
     translate_polygons_numpy,
+    flip_polygons_numpy,
     to_clipper_numpy,
     from_clipper,
     normalize_polygons_numpy,
@@ -974,6 +975,8 @@ def place_parts(
     rotations: List[float],
     config: NestConfig,
     sheet_spacing: float = 0.0,
+    flips_h: Optional[List[bool]] = None,
+    flips_v: Optional[List[bool]] = None,
 ) -> Optional[NestResult]:
     """
     Place parts using direct intersection checking.
@@ -1052,6 +1055,10 @@ def place_parts(
         hulls_np = [np.array(hull) for hull in hulls] if hulls else []
 
         rotated = rotate_polygons_numpy(polygons_np, rotation)
+        flip_h = flips_h[i] if flips_h else False
+        flip_v = flips_v[i] if flips_v else False
+        if flip_h or flip_v:
+            rotated = flip_polygons_numpy(rotated, flip_h, flip_v)
         normalized, orig_min_x, orig_min_y = normalize_polygons_numpy(rotated)
 
         # Prepare hulls: rotate them, then normalize using the same offset as
@@ -1059,6 +1066,8 @@ def place_parts(
         rotated_hulls = (
             rotate_polygons_numpy(hulls_np, rotation) if hulls_np else []
         )
+        if (flip_h or flip_v) and rotated_hulls:
+            rotated_hulls = flip_polygons_numpy(rotated_hulls, flip_h, flip_v)
         normalized_hulls = translate_polygons_numpy(
             rotated_hulls, -orig_min_x, -orig_min_y
         )
@@ -1203,6 +1212,8 @@ def place_parts(
             polygons=world_placed_group,
             hulls=world_placed_hulls,
             sheet_uid=sheet.uid,
+            flip_h=flip_h,
+            flip_v=flip_v,
         )
 
         placements.append(placement)

@@ -9,6 +9,8 @@ from .models import NestConfig
 class _Individual:
     placement: List[Dict[str, Any]] = field(default_factory=list)
     rotation: List[float] = field(default_factory=list)
+    flip_h: List[bool] = field(default_factory=list)
+    flip_v: List[bool] = field(default_factory=list)
     fitness: Optional[float] = None
     processing: bool = False
 
@@ -36,39 +38,105 @@ class GeneticAlgorithm:
 
         # First individual: use original orientation (all zeros)
         zero_angles = [0.0] * len(adam)
+        no_flip = [False] * len(adam)
         self.population.append(
-            _Individual(placement=adam.copy(), rotation=zero_angles)
+            _Individual(
+                placement=adam.copy(),
+                rotation=zero_angles,
+                flip_h=no_flip.copy(),
+                flip_v=no_flip.copy(),
+            )
         )
 
-        # Second individual: use 90-degree rotations for some parts
+        # Second individual: use alternate rotations if allowed
         alt_angles = []
-        for i in range(len(adam)):
-            angle = 90.0 if i % 2 == 0 else 0.0
-            alt_angles.append(angle)
+        if config.rotations >= 4:
+            alt_step = 360.0 / config.rotations
+            for i in range(len(adam)):
+                angle = alt_step if i % 2 == 0 else 0.0
+                alt_angles.append(angle)
+        else:
+            alt_angles = [0.0] * len(adam)
         self.population.append(
-            _Individual(placement=adam.copy(), rotation=alt_angles)
+            _Individual(
+                placement=adam.copy(),
+                rotation=alt_angles,
+                flip_h=no_flip.copy(),
+                flip_v=no_flip.copy(),
+            )
         )
 
-        # Third individual: use 180-degree rotations
+        # Third individual: use another rotation angle if allowed
         rot180_angles = []
-        for i in range(len(adam)):
-            angle = 180.0 if i % 2 == 0 else 0.0
-            rot180_angles.append(angle)
+        if config.rotations >= 2:
+            half_step = (360.0 / config.rotations) * (config.rotations // 2)
+            for i in range(len(adam)):
+                angle = half_step if i % 2 == 0 else 0.0
+                rot180_angles.append(angle)
+        else:
+            rot180_angles = [0.0] * len(adam)
         self.population.append(
-            _Individual(placement=adam.copy(), rotation=rot180_angles)
+            _Individual(
+                placement=adam.copy(),
+                rotation=rot180_angles,
+                flip_h=no_flip.copy(),
+                flip_v=no_flip.copy(),
+            )
         )
 
-        # Fourth individual: use random rotations for diversity
+        # Fourth individual: use random rotations and flips for diversity
         angles = []
+        flips_h = []
+        flips_v = []
         for _ in adam:
             angle = random.randint(0, config.rotations - 1) * (
                 360.0 / config.rotations
             )
             angles.append(angle)
+            flips_h.append(config.flip_h and random.choice([True, False]))
+            flips_v.append(config.flip_v and random.choice([True, False]))
 
         self.population.append(
-            _Individual(placement=adam.copy(), rotation=angles)
+            _Individual(
+                placement=adam.copy(),
+                rotation=angles,
+                flip_h=flips_h,
+                flip_v=flips_v,
+            )
         )
+
+        # Fifth individual: try horizontal flip on all parts if allowed
+        if config.flip_h:
+            self.population.append(
+                _Individual(
+                    placement=adam.copy(),
+                    rotation=zero_angles.copy(),
+                    flip_h=[True] * len(adam),
+                    flip_v=no_flip.copy(),
+                )
+            )
+
+        # Sixth individual: try vertical flip on all parts if allowed
+        if config.flip_v:
+            self.population.append(
+                _Individual(
+                    placement=adam.copy(),
+                    rotation=zero_angles.copy(),
+                    flip_h=no_flip.copy(),
+                    flip_v=[True] * len(adam),
+                )
+            )
+
+        # Seventh individual: try both flips on all parts if allowed
+        if config.flip_h and config.flip_v:
+            self.population.append(
+                _Individual(
+                    placement=adam.copy(),
+                    rotation=zero_angles.copy(),
+                    flip_h=[True] * len(adam),
+                    flip_v=[True] * len(adam),
+                )
+            )
 
         while len(self.population) < pop_size:
             mutant = self._mutate(
@@ -80,6 +148,8 @@ class GeneticAlgorithm:
         clone = _Individual(
             placement=individual.placement.copy(),
             rotation=individual.rotation.copy(),
+            flip_h=individual.flip_h.copy(),
+            flip_v=individual.flip_v.copy(),
         )
 
         for i in range(len(clone.placement)):
@@ -98,6 +168,16 @@ class GeneticAlgorithm:
                     0, self.config.rotations - 1
                 ) * (360.0 / self.config.rotations)
 
+            if self.config.flip_h:
+                rand = random.random()
+                if rand < 0.05:
+                    clone.flip_h[i] = not clone.flip_h[i]
+
+            if self.config.flip_v:
+                rand = random.random()
+                if rand < 0.05:
+                    clone.flip_v[i] = not clone.flip_v[i]
+
         return clone
 
     def _mate(
@@ -113,9 +193,13 @@ class GeneticAlgorithm:
 
         gene1 = male.placement[:cutpoint]
         rot1 = male.rotation[:cutpoint]
+        flip_h1 = male.flip_h[:cutpoint]
+        flip_v1 = male.flip_v[:cutpoint]
 
         gene2 = female.placement[:cutpoint]
         rot2 = female.rotation[:cutpoint]
+        flip_h2 = female.flip_h[:cutpoint]
+        flip_v2 = female.flip_v[:cutpoint]
 
         male_ids = {p["id"] for p in gene1}
         female_ids = {p["id"] for p in gene2}
@@ -124,15 +208,23 @@ class GeneticAlgorithm:
             if p["id"] not in male_ids:
                 gene1.append(p)
                 rot1.append(female.rotation[i])
+                flip_h1.append(female.flip_h[i])
+                flip_v1.append(female.flip_v[i])
 
         for i, p in enumerate(male.placement):
             if p["id"] not in female_ids:
                 gene2.append(p)
                 rot2.append(male.rotation[i])
+                flip_h2.append(male.flip_h[i])
+                flip_v2.append(male.flip_v[i])
 
         return (
-            _Individual(placement=gene1, rotation=rot1),
-            _Individual(placement=gene2, rotation=rot2),
+            _Individual(
+                placement=gene1, rotation=rot1, flip_h=flip_h1, flip_v=flip_v1
+            ),
+            _Individual(
+                placement=gene2, rotation=rot2, flip_h=flip_h2, flip_v=flip_v2
+            ),
         )
 
     def generation(self) -> None:

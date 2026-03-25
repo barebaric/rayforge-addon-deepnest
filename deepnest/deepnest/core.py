@@ -59,8 +59,12 @@ def _place_parts_worker(
     sheets: List[SheetInfo],
     rotations: List[float],
     config: NestConfig,
+    flips_h: Optional[List[bool]] = None,
+    flips_v: Optional[List[bool]] = None,
 ) -> Optional[NestResult]:
-    return place_parts(parts, sheets, rotations, config)
+    return place_parts(
+        parts, sheets, rotations, config, flips_h=flips_h, flips_v=flips_v
+    )
 
 
 def _simplify_polygon(polygon: Polygon, config: NestConfig) -> Polygon:
@@ -283,6 +287,8 @@ class DeepNest:
                             "rotation": p.rotation,
                             "sheet_uid": p.sheet_uid,
                             "polygons": p.polygons,
+                            "flip_h": p.flip_h,
+                            "flip_v": p.flip_v,
                         }
                         for p in identity_result.placements
                     ],
@@ -322,6 +328,8 @@ class DeepNest:
                     sheets,
                     individual.rotation,
                     self.config,
+                    flips_h=individual.flip_h,
+                    flips_v=individual.flip_v,
                 )
 
                 if result:
@@ -343,6 +351,8 @@ class DeepNest:
                                 "rotation": p.rotation,
                                 "sheet_uid": p.sheet_uid,
                                 "polygons": p.polygons,
+                                "flip_h": p.flip_h,
+                                "flip_v": p.flip_v,
                             }
                             for p in result.placements
                         ],
@@ -501,6 +511,8 @@ class DeepNest:
                                 polygons=p.polygons,
                                 hulls=p.hulls,
                                 sheet_uid=p.sheet_uid,
+                                flip_h=p.flip_h,
+                                flip_v=p.flip_v,
                             )
                             for p in result.placements
                         ]
@@ -543,6 +555,8 @@ class DeepNest:
                         sheets,
                         ind.rotation,
                         self.config,
+                        flips_h=ind.flip_h,
+                        flips_v=ind.flip_v,
                         key=task_key,
                         when_done=on_individual_done,
                         visible=False,
@@ -646,6 +660,8 @@ class DeepNest:
                     "sheet_uid": p.sheet_uid,
                     "polygons": p.polygons,
                     "hulls": p.hulls,
+                    "flip_h": p.flip_h,
+                    "flip_v": p.flip_v,
                 }
                 for p in state.best_placements
             ],
