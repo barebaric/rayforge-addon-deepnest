@@ -17,7 +17,7 @@ class TestExecuteNesting:
         editor.layout = MagicMock()
         items = [MagicMock()]
 
-        config = NestConfig(spacing=1.5, merge_lines=False)
+        config = NestConfig(spacing=1.5)
 
         with patch(
             "deepnest.backend.NestingLayoutStrategy"
@@ -38,7 +38,7 @@ class TestExecuteNesting:
         editor.layout = MagicMock()
         items = [MagicMock()]
 
-        config = NestConfig(spacing=0.5, merge_lines=True)
+        config = NestConfig(spacing=0.5)
 
         with patch(
             "deepnest.backend.NestingLayoutStrategy"
@@ -58,7 +58,7 @@ class TestExecuteNesting:
         editor.layout = MagicMock()
         items = []
 
-        config = NestConfig(spacing=0.0, merge_lines=True)
+        config = NestConfig(spacing=0.0)
 
         with patch(
             "deepnest.backend.NestingLayoutStrategy"
@@ -72,13 +72,13 @@ class TestExecuteNesting:
             call_kwargs = mock_strategy_class.call_args[1]
             assert call_kwargs["config"].spacing == 0.0
 
-    def test_execute_with_merge_lines_false(self):
-        """Verify execute_nesting passes merge_lines=False correctly."""
+    def test_execute_with_flip_options(self):
+        """Verify execute_nesting passes flip options correctly."""
         editor = MagicMock()
         editor.layout = MagicMock()
         items = [MagicMock()]
 
-        config = NestConfig(spacing=1.0, merge_lines=False)
+        config = NestConfig(spacing=1.0, flip_h=True, flip_v=True)
 
         with patch(
             "deepnest.backend.NestingLayoutStrategy"
@@ -89,4 +89,5 @@ class TestExecuteNesting:
             execute_nesting(editor, items, config)
 
             call_kwargs = mock_strategy_class.call_args[1]
-            assert call_kwargs["config"].merge_lines is False
+            assert call_kwargs["config"].flip_h is True
+            assert call_kwargs["config"].flip_v is True

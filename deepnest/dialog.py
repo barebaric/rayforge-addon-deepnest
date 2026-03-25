@@ -25,7 +25,6 @@ class NestingSettingsDialog(PatchedMessageDialog):
         self,
         parent,
         initial_spacing: float = 0.1,
-        initial_merge_lines: bool = True,
         initial_constrain_rotation: bool = False,
         initial_flip_h: bool = False,
         initial_flip_v: bool = False,
@@ -94,13 +93,6 @@ class NestingSettingsDialog(PatchedMessageDialog):
         )
         self.spacing_helper.set_value_in_base_units(initial_spacing)
 
-        self.merge_row = Adw.SwitchRow(
-            title=_("Merge Lines"),
-            subtitle=_("Combine connected line segments for cleaner output"),
-        )
-        self.merge_row.set_active(initial_merge_lines)
-        group.add(self.merge_row)
-
         self.constrain_rotation_row = Adw.SwitchRow(
             title=_("Constrain Rotation"),
             subtitle=_("Keep parts in their original orientation"),
@@ -131,11 +123,6 @@ class NestingSettingsDialog(PatchedMessageDialog):
         logger.debug("get_spacing: helper returned %.3f", value)
         return value
 
-    def get_merge_lines(self) -> bool:
-        value = self.merge_row.get_active()
-        logger.debug("get_merge_lines: row returned %s", value)
-        return value
-
     def get_constrain_rotation(self) -> bool:
         value = self.constrain_rotation_row.get_active()
         logger.debug("get_constrain_rotation: row returned %s", value)
@@ -153,23 +140,20 @@ class NestingSettingsDialog(PatchedMessageDialog):
 
     def get_config(self) -> NestConfig:
         spacing = self.get_spacing()
-        merge_lines = self.get_merge_lines()
         constrain_rotation = self.get_constrain_rotation()
         flip_h = self.get_flip_h()
         flip_v = self.get_flip_v()
         rotations = 1 if constrain_rotation else 36
         logger.debug(
-            "Dialog returning config: spacing=%.3f, merge_lines=%s, "
-            "rotations=%d, flip_h=%s, flip_v=%s",
+            "Dialog returning config: spacing=%.3f, rotations=%d, "
+            "flip_h=%s, flip_v=%s",
             spacing,
-            merge_lines,
             rotations,
             flip_h,
             flip_v,
         )
         return NestConfig(
             spacing=spacing,
-            merge_lines=merge_lines,
             rotations=rotations,
             flip_h=flip_h,
             flip_v=flip_v,

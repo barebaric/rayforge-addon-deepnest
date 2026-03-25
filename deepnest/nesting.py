@@ -58,10 +58,8 @@ class NestingLayoutStrategy(LayoutStrategy):
         self.config = config or NestConfig()
         self.unplaced_items: list[DocItem] = []
         logger.debug(
-            "NestingLayoutStrategy created with config: spacing=%.3f, "
-            "merge_lines=%s",
+            "NestingLayoutStrategy created with config: spacing=%.3f",
             self.config.spacing,
-            self.config.merge_lines,
         )
 
     def calculate_deltas(
@@ -107,9 +105,12 @@ class NestingLayoutStrategy(LayoutStrategy):
         )
 
         logger.debug(
-            "Creating DeepNest with config: spacing=%.3f, merge_lines=%s",
+            "Creating DeepNest with config: spacing=%.3f, rotations=%d, "
+            "flip_h=%s, flip_v=%s",
             config.spacing,
-            config.merge_lines,
+            config.rotations,
+            config.flip_h,
+            config.flip_v,
         )
         nester = DeepNest(config)
 
