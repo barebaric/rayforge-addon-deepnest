@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-11 10:59+0100\n"
+"POT-Creation-Date: 2026-03-29 15:57+0200\n"
 "PO-Revision-Date: 2026-03-03 23:03+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -49,12 +49,28 @@ msgid "Distance between nested shapes"
 msgstr "Відстань між вкладеними формами"
 
 #: deepnest/dialog.py
-msgid "Merge Lines"
-msgstr "Об'єднати лінії"
+msgid "Constrain Rotation"
+msgstr "Обмежити обертання"
 
 #: deepnest/dialog.py
-msgid "Combine connected line segments for cleaner output"
-msgstr "Об'єднати з'єднані відрізки ліній для чистішого виводу"
+msgid "Keep parts in their original orientation"
+msgstr "Зберегти оригінальну орієнтацію деталей"
+
+#: deepnest/dialog.py
+msgid "Allow Horizontal Flip"
+msgstr "Дозволити горизонтальне відображення"
+
+#: deepnest/dialog.py
+msgid "Mirror parts horizontally for better fit"
+msgstr "Відобразити деталі горизонтально для кращого розміщення"
+
+#: deepnest/dialog.py
+msgid "Allow Vertical Flip"
+msgstr "Дозволити вертикальне відображення"
+
+#: deepnest/dialog.py
+msgid "Mirror parts vertically for better fit"
+msgstr "Відобразити деталі вертикально для кращого розміщення"
 
 #: deepnest/frontend.py
 msgid "Auto Layout (Nesting)"
