@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-29 15:57+0200\n"
+"POT-Creation-Date: 2026-04-20 14:59+0200\n"
 "PO-Revision-Date: 2026-03-03 23:03+0100\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -16,6 +16,10 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: deepnest/worker.py
+msgid "Nesting Layout"
+msgstr "Nesting Layout"
 
 #: deepnest/dialog.py
 msgid "Nesting Layout Settings"
@@ -71,7 +75,3 @@ msgstr ""
 #: deepnest/frontend.py
 msgid "Auto Layout (Nesting)"
 msgstr ""
-
-#: deepnest/backend.py
-msgid "Nesting Layout"
-msgstr "Nesting Layout"
