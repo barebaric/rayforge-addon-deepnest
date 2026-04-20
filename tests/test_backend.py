@@ -1,10 +1,10 @@
 """
-Tests for deepnest backend functions.
+Tests for deepnest worker functions.
 """
 
 from unittest.mock import MagicMock, patch
 
-from deepnest.backend import execute_nesting
+from deepnest.worker import execute_nesting
 from deepnest.deepnest.models import NestConfig
 
 
@@ -20,7 +20,7 @@ class TestExecuteNesting:
         config = NestConfig(spacing=1.5)
 
         with patch(
-            "deepnest.backend.NestingLayoutStrategy"
+            "deepnest.worker.NestingLayoutStrategy"
         ) as mock_strategy_class:
             mock_strategy = MagicMock()
             mock_strategy_class.return_value = mock_strategy
@@ -41,7 +41,7 @@ class TestExecuteNesting:
         config = NestConfig(spacing=0.5)
 
         with patch(
-            "deepnest.backend.NestingLayoutStrategy"
+            "deepnest.worker.NestingLayoutStrategy"
         ) as mock_strategy_class:
             mock_strategy = MagicMock()
             mock_strategy_class.return_value = mock_strategy
@@ -61,7 +61,7 @@ class TestExecuteNesting:
         config = NestConfig(spacing=0.0)
 
         with patch(
-            "deepnest.backend.NestingLayoutStrategy"
+            "deepnest.worker.NestingLayoutStrategy"
         ) as mock_strategy_class:
             mock_strategy = MagicMock()
             mock_strategy_class.return_value = mock_strategy
@@ -81,7 +81,7 @@ class TestExecuteNesting:
         config = NestConfig(spacing=1.0, flip_h=True, flip_v=True)
 
         with patch(
-            "deepnest.backend.NestingLayoutStrategy"
+            "deepnest.worker.NestingLayoutStrategy"
         ) as mock_strategy_class:
             mock_strategy = MagicMock()
             mock_strategy_class.return_value = mock_strategy

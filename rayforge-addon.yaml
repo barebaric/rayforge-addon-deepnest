@@ -1,12 +1,12 @@
 name: deepnest
 display_name: "Deepnest"
 description: "Nesting layout functionality using deepnest algorithm"
-api_version: 2
+api_version: 12
 author:
   name: "Samuel Abels"
   email: "noreply@rayforge.org"
 provides:
-  backend: "deepnest.backend"
+  worker: "deepnest.worker"
   frontend: "deepnest.frontend"
 license:
   name: "BSL-1.1"
