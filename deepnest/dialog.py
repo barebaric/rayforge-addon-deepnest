@@ -41,7 +41,11 @@ class NestingSettingsDialog(PatchedMessageDialog):
         self.set_default_response("start")
         self.set_close_response("cancel")
 
-        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        main_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=12,
+            width_request=550,
+        )
 
         warning_box = Gtk.Box(
             hexpand=True,
