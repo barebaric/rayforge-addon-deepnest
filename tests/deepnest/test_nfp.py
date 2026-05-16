@@ -1,10 +1,10 @@
+from raygeo import Polygon
 from deepnest.deepnest.nfp import (
     no_fit_polygon,
     inner_fit_polygon,
     _nfp_minkowski,
 )
 from deepnest.deepnest.models import NestConfig
-from rayforge.core.geo.types import Polygon
 
 
 class TestNoFitPolygon:
@@ -181,7 +181,7 @@ class TestNfpMinkowski:
     def test_basic(self):
         config = NestConfig()
         scale = config.clipper_scale
-        from rayforge.core.geo.polygon import to_clipper
+        from raygeo import to_clipper
 
         static = to_clipper(
             [(0.0, 0.0), (100.0, 0.0), (100.0, 100.0), (0.0, 100.0)], scale
@@ -198,7 +198,7 @@ class TestNfpMinkowski:
     def test_part_larger_than_static(self):
         config = NestConfig()
         scale = config.clipper_scale
-        from rayforge.core.geo.polygon import to_clipper
+        from raygeo import to_clipper
 
         static = to_clipper(
             [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)], scale

@@ -13,19 +13,17 @@ import threading
 from typing import List, Tuple, Dict
 import pyclipper
 
-from rayforge.core.geo.minkowski import (
+from raygeo import IntPolygon, Point, Polygon, to_clipper, from_clipper
+from raygeo.algo.minkowski import (
     convolve_point_sequences,
-    minkowski_sum_convex,
+    get_polygon_minkowski_sum_convex,
 )
-from rayforge.core.geo.polygon import (
-    to_clipper,
-    from_clipper,
-    is_convex,
+from raygeo.shape.polygon import (
+    is_polygon_convex,
     clean_polygon,
-    convex_hull,
-    polygon_bounds,
+    get_polygon_convex_hull,
+    get_polygon_bounds,
 )
-from rayforge.core.geo.types import IntPolygon, Point, Polygon
 from .models import NestConfig
 
 logger = logging.getLogger(__name__)
@@ -88,7 +86,7 @@ def _nfp_convex_fast(
 
     orbiting_negated = [(-p[0], -p[1]) for p in orbiting]
 
-    nfp_paths = minkowski_sum_convex(static, orbiting_negated)
+    nfp_paths = get_polygon_minkowski_sum_convex(static, orbiting_negated)
 
     results = []
     for path in nfp_paths:
@@ -208,7 +206,9 @@ def no_fit_polygon(
 
             if len(static_path) < 3 or len(orbiting_path) < 3:
                 base_nfps = []
-            elif is_convex(norm_static) and is_convex(norm_orbiting):
+            elif is_polygon_convex(norm_static) and is_polygon_convex(
+                norm_orbiting
+            ):
                 base_nfps = _nfp_convex_fast(static_path, orbiting_path, scale)
             else:
                 base_nfps = _nfp_minkowski(static_path, orbiting_path, scale)
@@ -266,8 +266,8 @@ def inner_fit_polygon(
             _manage_cache_size(_IFP_CACHE)
 
     if base_ifps is None:
-        bin_bounds = polygon_bounds(norm_bin)
-        part_bounds = polygon_bounds(norm_part)
+        bin_bounds = get_polygon_bounds(norm_bin)
+        part_bounds = get_polygon_bounds(norm_part)
 
         bin_width = bin_bounds[2] - bin_bounds[0]
         bin_height = bin_bounds[3] - bin_bounds[1]
@@ -302,7 +302,7 @@ def inner_fit_polygon(
                 )
 
             # 2. Add Convex Hull Sweep for every edge
-            # Convert part_neg to float for convex_hull calculation
+            # Convert part_neg to float for get_polygon_convex_hull calculation
             part_neg_float = [(float(p[0]), float(p[1])) for p in part_neg]
 
             for i in range(len(bin_clip)):
@@ -317,7 +317,7 @@ def inner_fit_polygon(
 
                 # The Convex Hull of these points is the solid sweep
                 # of the part along the segment
-                hull = convex_hull(points)
+                hull = get_polygon_convex_hull(points)
                 hull_int = [(int(p[0]), int(p[1])) for p in hull]
 
                 clipper_union.AddPath(hull_int, pyclipper.PT_SUBJECT, True)

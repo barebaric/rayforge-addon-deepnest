@@ -5,8 +5,8 @@ import pyclipper
 import math
 import numpy as np
 
-from rayforge.core.geo.types import Rect, Point
-from rayforge.core.geo.polygon import (
+from raygeo import Rect, Point, from_clipper
+from raygeo.shape.polygon import (
     point_in_polygon_numpy,
     polygon_area_numpy,
     polygon_bounds_numpy,
@@ -16,11 +16,11 @@ from rayforge.core.geo.polygon import (
     translate_polygons_numpy,
     flip_polygons_numpy,
     to_clipper_numpy,
-    from_clipper,
     normalize_polygons_numpy,
-    polygon_offset,
+    offset_polygon,
+    get_polygon_area,
 )
-from rayforge.core.geo.query import bboxes_intersect
+from raygeo.shape.rect import does_rect_intersect_rect
 from .models import NestConfig, Placement, SheetInfo
 from .nfp import inner_fit_polygon, no_fit_polygon
 from .spatial_grid import SpatialGrid
@@ -114,7 +114,7 @@ def _any_overlap(
         placed_bbox = polygon_group_bounds_numpy(placed_polys)
 
         # 1. Bounding Box Check (Fastest)
-        if not bboxes_intersect(cand_bbox, placed_bbox):
+        if not does_rect_intersect_rect(cand_bbox, placed_bbox):
             continue
 
         # 2. Convex Hull Check (Medium speed)
@@ -704,7 +704,7 @@ def _find_valid_position(
                     placed_bbox[3] + ph_local + spacing,
                 )
 
-                if not bboxes_intersect(expanded_placed, ifp_bounds):
+                if not does_rect_intersect_rect(expanded_placed, ifp_bounds):
                     continue
 
                 # no_fit_polygon expects Python Polygon types
@@ -724,7 +724,7 @@ def _find_valid_position(
                     ]
 
                     if spacing > 0:
-                        expanded = polygon_offset(nfp_origin, spacing)
+                        expanded = offset_polygon(nfp_origin, spacing)
                         for exp_nfp in expanded:
                             try:
                                 clipper.AddPath(
@@ -1027,9 +1027,7 @@ def place_parts(
     part_areas = []
     for i, part in enumerate(parts):
         polygons = part.get("polygons", [])
-        # Convert to numpy for area calculation
-        polygons_np = [np.array(poly) for poly in polygons]
-        area = sum(abs(polygon_area_numpy(poly)) for poly in polygons_np)
+        area = sum(abs(get_polygon_area(poly)) for poly in polygons)
         part_areas.append((area, i))
 
     sorted_indices = [idx for _, idx in sorted(part_areas, reverse=True)]
@@ -1051,8 +1049,12 @@ def place_parts(
             continue
 
         # Convert to numpy arrays
-        polygons_np = [np.array(poly) for poly in polygons]
-        hulls_np = [np.array(hull) for hull in hulls] if hulls else []
+        polygons_np = [np.array(poly, dtype=np.float64) for poly in polygons]
+        hulls_np = (
+            [np.array(hull, dtype=np.float64) for hull in hulls]
+            if hulls
+            else []
+        )
 
         rotated = rotate_polygons_numpy(polygons_np, rotation)
         flip_h = flips_h[i] if flips_h else False

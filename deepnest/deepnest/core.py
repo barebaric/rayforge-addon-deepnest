@@ -6,17 +6,16 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 import numpy as np
 
-from rayforge.core.geo import Geometry
-from rayforge.core.geo.polygon import (
+from raygeo import Geometry, Polygon
+from raygeo.shape.polygon import (
     polygon_area_numpy,
     polygon_bounds_numpy,
-    polygon_offset,
+    offset_polygon,
     clean_polygon,
-    convex_hull,
+    get_polygon_convex_hull,
     normalize_polygons,
 )
-from rayforge.core.geo.simplify import simplify_points
-from rayforge.core.geo.types import Polygon
+from raygeo.algo.simplify import simplify_polyline
 from .genetic import GeneticAlgorithm
 from .models import (
     NestConfig,
@@ -74,11 +73,11 @@ def _simplify_polygon(polygon: Polygon, config: NestConfig) -> Polygon:
     # Reduces vertex count on complex curves before they enter the nesting
     # logic
     if config.simplify_tolerance > 0:
-        polygon = simplify_points(polygon, config.simplify_tolerance)
+        polygon = simplify_polyline(polygon, config.simplify_tolerance)
 
     # 2. Convex Hull Simplification (Optional / Aggressive)
     if config.simplify:
-        return convex_hull(polygon)
+        return get_polygon_convex_hull(polygon)
 
     # 3. Merge Collinear Segments (Optional)
     if config.merge_lines:
@@ -130,7 +129,7 @@ class DeepNest:
         processed = []
         for poly in polygons:
             if self.config.spacing > 0:
-                offset_polys = polygon_offset(poly, 0.5 * self.config.spacing)
+                offset_polys = offset_polygon(poly, 0.5 * self.config.spacing)
                 if offset_polys:
                     poly = offset_polys[0]
             processed.append(_simplify_polygon(poly, self.config))
@@ -147,7 +146,7 @@ class DeepNest:
         processed_np = [np.array(p) for p in processed]
 
         # Pre-calculate convex hulls for hierarchical collision detection
-        hulls = [np.array(convex_hull(p)) for p in processed]
+        hulls = [np.array(get_polygon_convex_hull(p)) for p in processed]
 
         info = WorkpieceInfo(
             uid=uid or f"geo_{len(self._workpieces) + len(self._sheets)}",
@@ -748,5 +747,10 @@ class DeepNest:
             source=-1,
             quantity=1,
             is_sheet=True,
-            hulls=[np.array(convex_hull(sheet_polygon.tolist()))],
+            hulls=[
+                np.array(
+                    get_polygon_convex_hull(sheet_polygon.tolist()),
+                    dtype=np.float64,
+                )
+            ],
         )

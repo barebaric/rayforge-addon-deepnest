@@ -9,7 +9,8 @@ from typing import Union, List, cast
 import pytest
 import pyclipper
 import numpy as np
-
+from raygeo import Geometry
+from raygeo.shape.polygon import to_clipper_numpy
 from deepnest.deepnest import DeepNest
 from deepnest.deepnest.models import (
     NestConfig,
@@ -20,8 +21,6 @@ from deepnest.deepnest.placement import (
     NestResult,
     place_parts,
 )
-from rayforge.core.geo import Geometry
-from rayforge.core.geo.polygon import to_clipper_numpy
 
 
 def P(*points):
@@ -1076,7 +1075,7 @@ class TestDeepNestIntegration:
     def test_deepnest_basic_no_overlap(self, config):
         """Test DeepNest class directly with basic polygons."""
         from deepnest.deepnest import DeepNest
-        from rayforge.core.geo import Geometry
+        from raygeo import Geometry
 
         nester = DeepNest(config)
 

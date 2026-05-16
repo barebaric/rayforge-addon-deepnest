@@ -15,8 +15,8 @@ from typing import (
     TYPE_CHECKING,
 )
 
+from raygeo import Geometry
 from rayforge.context import get_context
-from rayforge.core.geo import Geometry
 from rayforge.core.group import Group
 from rayforge.core.item import DocItem
 from rayforge.core.matrix import Matrix

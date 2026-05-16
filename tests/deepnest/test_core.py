@@ -4,7 +4,7 @@ Tests for rayforge.shared.deepnest.core module.
 
 import pytest
 import numpy as np
-from rayforge.core.geo import Geometry
+from raygeo import Geometry
 from deepnest.deepnest.models import (
     NestConfig,
     WorkpieceInfo,
