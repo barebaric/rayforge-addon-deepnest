@@ -6,7 +6,9 @@ from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, TYPE_CHECKING
 import numpy as np
 
-from raygeo import Geometry, Polygon
+from raygeo.geo import Geometry
+from raygeo.geo.algo.simplify import simplify_polyline
+from raygeo.geo.types import Polygon
 from raygeo.shape.polygon import (
     polygon_area_numpy,
     polygon_bounds_numpy,
@@ -15,7 +17,6 @@ from raygeo.shape.polygon import (
     get_polygon_convex_hull,
     normalize_polygons,
 )
-from raygeo.algo.simplify import simplify_polyline
 from .genetic import GeneticAlgorithm
 from .models import (
     NestConfig,

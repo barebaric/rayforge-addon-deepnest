@@ -1,7 +1,7 @@
 from typing import Dict, List, Set, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from raygeo import Rect
+    from raygeo.geo.types import Rect
 
 
 class SpatialGrid:

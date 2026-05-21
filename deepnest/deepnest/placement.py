@@ -5,7 +5,8 @@ import pyclipper
 import math
 import numpy as np
 
-from raygeo import Rect, Point, from_clipper
+from raygeo.geo.algo.clipping import from_clipper
+from raygeo.geo.types import Rect, Point
 from raygeo.shape.polygon import (
     point_in_polygon_numpy,
     polygon_area_numpy,

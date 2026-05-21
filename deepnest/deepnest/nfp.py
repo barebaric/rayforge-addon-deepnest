@@ -13,8 +13,8 @@ import threading
 from typing import List, Tuple, Dict
 import pyclipper
 
-from raygeo import IntPolygon, Point, Polygon, to_clipper, from_clipper
-from raygeo.algo.minkowski import (
+from raygeo.geo.algo.clipping import to_clipper, from_clipper
+from raygeo.geo.algo.minkowski import (
     convolve_point_sequences,
     get_polygon_minkowski_sum_convex,
 )
@@ -24,6 +24,7 @@ from raygeo.shape.polygon import (
     get_polygon_convex_hull,
     get_polygon_bounds,
 )
+from raygeo.geo.types import IntPolygon, Point, Polygon
 from .models import NestConfig
 
 logger = logging.getLogger(__name__)
