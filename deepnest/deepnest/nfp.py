@@ -18,7 +18,7 @@ from raygeo.geo.algo.minkowski import (
     convolve_point_sequences,
     get_polygon_minkowski_sum_convex,
 )
-from raygeo.shape.polygon import (
+from raygeo.geo.shape.polygon import (
     is_polygon_convex,
     clean_polygon,
     get_polygon_convex_hull,

@@ -9,7 +9,7 @@ import numpy as np
 from raygeo.geo import Geometry
 from raygeo.geo.algo.simplify import simplify_polyline
 from raygeo.geo.types import Polygon
-from raygeo.shape.polygon import (
+from raygeo.geo.shape.polygon import (
     polygon_area_numpy,
     polygon_bounds_numpy,
     offset_polygon,

@@ -10,7 +10,7 @@ import pytest
 import pyclipper
 import numpy as np
 from raygeo import Geometry
-from raygeo.shape.polygon import to_clipper_numpy
+from raygeo.geo.shape.polygon import to_clipper_numpy
 from deepnest.deepnest import DeepNest
 from deepnest.deepnest.models import (
     NestConfig,

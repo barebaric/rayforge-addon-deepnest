@@ -7,7 +7,7 @@ import numpy as np
 
 from raygeo.geo.algo.clipping import from_clipper
 from raygeo.geo.types import Rect, Point
-from raygeo.shape.polygon import (
+from raygeo.geo.shape.polygon import (
     point_in_polygon_numpy,
     polygon_area_numpy,
     polygon_bounds_numpy,
@@ -21,7 +21,7 @@ from raygeo.shape.polygon import (
     offset_polygon,
     get_polygon_area,
 )
-from raygeo.shape.rect import does_rect_intersect_rect
+from raygeo.geo.shape.rect import does_rect_intersect_rect
 from .models import NestConfig, Placement, SheetInfo
 from .nfp import inner_fit_polygon, no_fit_polygon
 from .spatial_grid import SpatialGrid
