@@ -5,7 +5,6 @@ Implements a nesting layout strategy using the deepnest module.
 from __future__ import annotations
 
 import logging
-import math
 import os
 from typing import (
     Dict,
@@ -461,22 +460,13 @@ class NestingLayoutStrategy(LayoutStrategy):
 
         all_points = []
         for placement in solution.placements:
-            x = placement.get("x", 0)
-            y = placement.get("y", 0)
-            rotation = placement.get("rotation", 0)
             polygons = placement.get("polygons", [])
-
-            cos_r = math.cos(math.radians(rotation))
-            sin_r = math.sin(math.radians(rotation))
 
             for poly in polygons:
                 if poly is None or len(poly) == 0:
                     continue
                 for point in poly:
-                    px, py = point[0], point[1]
-                    rx = px * cos_r - py * sin_r + x
-                    ry = px * sin_r + py * cos_r + y
-                    all_points.append((rx, ry))
+                    all_points.append((point[0], point[1]))
 
         if not all_points:
             return None
