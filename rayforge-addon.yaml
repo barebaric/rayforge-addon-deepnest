@@ -1,7 +1,7 @@
 name: deepnest
 display_name: "Deepnest"
 description: "Nesting layout functionality using deepnest algorithm"
-api_version: 14
+api_version: 15
 author:
   name: "Samuel Abels"
   email: "noreply@rayforge.org"
