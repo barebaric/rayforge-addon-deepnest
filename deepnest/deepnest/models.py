@@ -31,10 +31,6 @@ class NestConfig:
             reducing vertex count for simpler geometry.
         simplify: If True, replaces each polygon with its convex hull for
             faster but less accurate nesting.
-        clipper_scale: Integer scaling factor for Clipper library operations.
-            Higher values increase precision for small features but may impact
-            performance. Default 10000000 provides good precision for most
-            cases.
         target_utilization: Target material utilization (0.0-1.0). Nesting
             stops early if efficiency exceeds this value. Fitness is
             1/utilization, so 0.99 means stop when fitness < ~1.01.
@@ -50,7 +46,6 @@ class NestConfig:
     mutation_rate: int = 30
     merge_lines: bool = True
     simplify: bool = False
-    clipper_scale: int = 10000000
     target_utilization: float = 0.99
 
 

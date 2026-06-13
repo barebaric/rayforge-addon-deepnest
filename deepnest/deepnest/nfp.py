@@ -76,10 +76,8 @@ def no_fit_polygon(
 
     # 4. Compute if missing
     if base_nfps is None:
-        # Use consistent scaling from config to avoid precision mismatches
-        scale = config.clipper_scale
         try:
-            base_nfps = nfp.no_fit_polygon(norm_static, norm_orbiting, scale)
+            base_nfps = nfp.no_fit_polygon(norm_static, norm_orbiting)
         except Exception as e:
             logger.debug("NFP calculation failed: %s", e)
             base_nfps = []
@@ -134,9 +132,8 @@ def inner_fit_polygon(
             _manage_cache_size(_IFP_CACHE)
 
     if base_ifps is None:
-        scale = config.clipper_scale
         try:
-            base_ifps = ifp.inner_fit_polygon(norm_bin, norm_part, scale)
+            base_ifps = ifp.inner_fit_polygon(norm_bin, norm_part)
         except Exception as e:
             logger.debug("IFP calculation failed: %s", e)
             base_ifps = []

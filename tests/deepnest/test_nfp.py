@@ -180,33 +180,27 @@ class TestNfpMinkowski:
     """Tests for nfp.nfp_minkowski function."""
 
     def test_basic(self):
-        config = NestConfig()
-        scale = config.clipper_scale
-
         static = to_clipper(
-            [(0.0, 0.0), (100.0, 0.0), (100.0, 100.0), (0.0, 100.0)], scale
+            [(0.0, 0.0), (100.0, 0.0), (100.0, 100.0), (0.0, 100.0)]
         )
         orbiting = to_clipper(
-            [(0.0, 0.0), (20.0, 0.0), (20.0, 20.0), (0.0, 20.0)], scale
+            [(0.0, 0.0), (20.0, 0.0), (20.0, 20.0), (0.0, 20.0)]
         )
 
-        result = _nfp.nfp_minkowski(static, orbiting, scale)
+        result = _nfp.nfp_minkowski(static, orbiting)
         assert len(result) >= 1
         for nfp in result:
             assert len(nfp) >= 3
 
     def test_part_larger_than_static(self):
-        config = NestConfig()
-        scale = config.clipper_scale
-
         static = to_clipper(
-            [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)], scale
+            [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
         )
         orbiting = to_clipper(
-            [(0.0, 0.0), (100.0, 0.0), (100.0, 100.0), (0.0, 100.0)], scale
+            [(0.0, 0.0), (100.0, 0.0), (100.0, 100.0), (0.0, 100.0)]
         )
 
-        result = _nfp.nfp_minkowski(static, orbiting, scale)
+        result = _nfp.nfp_minkowski(static, orbiting)
         # Minkowski sum of two rectangles still results in a larger rectangle
         assert len(result) >= 1
         for nfp in result:
@@ -288,7 +282,7 @@ class TestNfpEdgeCases:
         assert result is not None
 
     def test_very_large_scale(self):
-        config = NestConfig(clipper_scale=10000000)
+        config = NestConfig()
         bin_poly: Polygon = [
             (0.0, 0.0),
             (100.0, 0.0),

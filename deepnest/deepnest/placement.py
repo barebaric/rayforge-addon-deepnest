@@ -99,8 +99,7 @@ def place_parts(
     for sheet in sheets:
         sheet_bounds = polygon_bounds_numpy(sheet.polygon)
         logger.info(
-            "  Sheet '%s': bounds=(%.2f,%.2f)-(%.2f,%.2f), "
-            "offset=(%.2f,%.2f)",
+            "  Sheet '%s': bounds=(%.2f,%.2f)-(%.2f,%.2f), offset=(%.2f,%.2f)",
             sheet.uid,
             sheet_bounds[0],
             sheet_bounds[1],
@@ -116,14 +115,12 @@ def place_parts(
     for part in parts:
         polys = part.get("polygons", [])
         hulls = part.get("hulls", [])
-        part_polys.append([
-            [(float(vx), float(vy)) for vx, vy in poly]
-            for poly in polys
-        ])
-        part_hulls.append([
-            [(float(vx), float(vy)) for vx, vy in hull]
-            for hull in hulls
-        ])
+        part_polys.append(
+            [[(float(vx), float(vy)) for vx, vy in poly] for poly in polys]
+        )
+        part_hulls.append(
+            [[(float(vx), float(vy)) for vx, vy in hull] for hull in hulls]
+        )
 
     # Convert sheets to Rust format
     sheet_polys = [
@@ -131,17 +128,15 @@ def place_parts(
         for sheet in sheets
     ]
     sheet_offsets = [
-        (sheet.world_offset_x, sheet.world_offset_y)
-        for sheet in sheets
+        (sheet.world_offset_x, sheet.world_offset_y) for sheet in sheets
     ]
 
     rotations_deg = list(rotations)
     flips_h_list = list(flips_h) if flips_h else [False] * num_parts
     flips_v_list = list(flips_v) if flips_v else [False] * num_parts
 
-    spacing = getattr(config, "spacing", 0.5)
-    scale = getattr(config, "clipper_scale", 10000000)
-    curve_tolerance = getattr(config, "curve_tolerance", 0.5)
+    spacing = config.spacing
+    curve_tolerance = config.curve_tolerance
 
     rust_results = _placement.place_parts(
         part_polys,
@@ -152,7 +147,6 @@ def place_parts(
         flips_h_list,
         flips_v_list,
         spacing=spacing,
-        scale=scale,
         min_area=10.0,
         curve_tolerance=curve_tolerance,
     )
@@ -171,23 +165,27 @@ def place_parts(
             part_index = pl["part_index"]
             part = parts[part_index]
 
-            all_placements.append(Placement(
-                id=part.get("id", part_index),
-                source=part.get("source", part_index),
-                uid=part.get("uid", f"part_{part_index}"),
-                x=pl["position"][0],
-                y=pl["position"][1],
-                rotation=rotations_deg[part_index],
-                polygons=[
-                    np.array(poly, dtype=np.float64) for poly in pl["polygons"]
-                ],
-                hulls=[
-                    np.array(hull, dtype=np.float64) for hull in pl["hulls"]
-                ],
-                sheet_uid=sheet_uid,
-                flip_h=flips_h_list[part_index],
-                flip_v=flips_v_list[part_index],
-            ))
+            all_placements.append(
+                Placement(
+                    id=part.get("id", part_index),
+                    source=part.get("source", part_index),
+                    uid=part.get("uid", f"part_{part_index}"),
+                    x=pl["position"][0],
+                    y=pl["position"][1],
+                    rotation=rotations_deg[part_index],
+                    polygons=[
+                        np.array(poly, dtype=np.float64)
+                        for poly in pl["polygons"]
+                    ],
+                    hulls=[
+                        np.array(hull, dtype=np.float64)
+                        for hull in pl["hulls"]
+                    ],
+                    sheet_uid=sheet_uid,
+                    flip_h=flips_h_list[part_index],
+                    flip_v=flips_v_list[part_index],
+                )
+            )
 
     if not all_placements:
         logger.warning("place_parts: no placements made")
@@ -218,7 +216,6 @@ def place_parts(
 
 def validate_placements_no_overlap(
     placements: List[Placement],
-    scale: int = 10000000,
     min_overlap_area: float = 100,
 ) -> bool:
     """
