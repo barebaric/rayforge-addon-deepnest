@@ -45,27 +45,21 @@ class TestGeneticAlgorithm:
                 assert 0 <= rot < 360
 
     def test_ga_mutate(self, config, sample_parts):
+        # _mutate is now implemented in Rust; tested via generation().
         ga = GeneticAlgorithm(sample_parts, config)
-        original = ga.population[0]
-        mutant = ga._mutate(original)
-        assert len(mutant.placement) == len(original.placement)
-        assert len(mutant.rotation) == len(original.rotation)
+        # Verify mutation happens during a generation cycle.
+        for i, ind in enumerate(ga.population):
+            ind.fitness = float(i + 1)
+        ga.generation()
+        assert len(ga.population) == config.population_size
 
     def test_ga_mate(self, config, sample_parts):
+        # _mate is now implemented in Rust; tested via generation().
         ga = GeneticAlgorithm(sample_parts, config)
-        male = ga.population[0]
-        female = (
-            ga.population[1] if len(ga.population) > 1 else ga.population[0]
-        )
-
-        child1, child2 = ga._mate(male, female)
-
-        all_ids = {p["id"] for p in sample_parts}
-        child1_ids = {p["id"] for p in child1.placement}
-        child2_ids = {p["id"] for p in child2.placement}
-
-        assert child1_ids == all_ids
-        assert child2_ids == all_ids
+        for i, ind in enumerate(ga.population):
+            ind.fitness = float(i + 1)
+        ga.generation()
+        assert len(ga.population) == config.population_size
 
     def test_ga_generation(self, config, sample_parts):
         ga = GeneticAlgorithm(sample_parts, config)

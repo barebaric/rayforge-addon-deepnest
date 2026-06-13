@@ -1,8 +1,9 @@
+from raygeo.geo.algo.clipping import to_clipper
 from raygeo.geo.types import Polygon
+from raygeo.nest import nfp as _nfp
 from deepnest.deepnest.nfp import (
     no_fit_polygon,
     inner_fit_polygon,
-    _nfp_minkowski,
 )
 from deepnest.deepnest.models import NestConfig
 
@@ -176,12 +177,11 @@ class TestInnerFitPolygon:
 
 
 class TestNfpMinkowski:
-    """Tests for _nfp_minkowski function."""
+    """Tests for nfp.nfp_minkowski function."""
 
     def test_basic(self):
         config = NestConfig()
         scale = config.clipper_scale
-        from raygeo.geo.algo.clipping import to_clipper
 
         static = to_clipper(
             [(0.0, 0.0), (100.0, 0.0), (100.0, 100.0), (0.0, 100.0)], scale
@@ -190,7 +190,7 @@ class TestNfpMinkowski:
             [(0.0, 0.0), (20.0, 0.0), (20.0, 20.0), (0.0, 20.0)], scale
         )
 
-        result = _nfp_minkowski(static, orbiting, scale)
+        result = _nfp.nfp_minkowski(static, orbiting, scale)
         assert len(result) >= 1
         for nfp in result:
             assert len(nfp) >= 3
@@ -198,7 +198,6 @@ class TestNfpMinkowski:
     def test_part_larger_than_static(self):
         config = NestConfig()
         scale = config.clipper_scale
-        from raygeo.geo.algo.clipping import to_clipper
 
         static = to_clipper(
             [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)], scale
@@ -207,7 +206,7 @@ class TestNfpMinkowski:
             [(0.0, 0.0), (100.0, 0.0), (100.0, 100.0), (0.0, 100.0)], scale
         )
 
-        result = _nfp_minkowski(static, orbiting, scale)
+        result = _nfp.nfp_minkowski(static, orbiting, scale)
         # Minkowski sum of two rectangles still results in a larger rectangle
         assert len(result) >= 1
         for nfp in result:

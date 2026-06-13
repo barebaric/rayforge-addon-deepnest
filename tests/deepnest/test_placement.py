@@ -7,10 +7,12 @@ from __future__ import annotations
 from typing import Union, List, cast
 
 import pytest
-import pyclipper
 import numpy as np
 from raygeo import Geometry
-from raygeo.geo.shape.polygon import to_clipper_numpy
+from raygeo.geo.shape.polygon import (
+    get_polygon_area,
+    get_polygons_group_intersection,
+)
 from deepnest.deepnest import DeepNest
 from deepnest.deepnest.models import (
     NestConfig,
@@ -70,25 +72,13 @@ def polygons_intersect(poly1, poly2, min_overlap=0.1):
     Check if two polygons have significant intersection.
     Returns the intersection area, or 0 if no intersection.
     """
-    scale = 10000000
     try:
-        c1 = to_clipper_numpy(np.array(poly1), scale)
-        c2 = to_clipper_numpy(np.array(poly2), scale)
-
-        clipper = pyclipper.Pyclipper()
-        clipper.AddPath(c1, pyclipper.PT_SUBJECT, True)
-        clipper.AddPath(c2, pyclipper.PT_CLIP, True)
-
-        result = clipper.Execute(
-            pyclipper.CT_INTERSECTION,
-            pyclipper.PFT_NONZERO,
-            pyclipper.PFT_NONZERO,
-        )
-
+        p1 = [tuple(p) for p in poly1]
+        p2 = [tuple(p) for p in poly2]
+        result = get_polygons_group_intersection([p1], [p2])
         if result:
-            total_area = sum(abs(pyclipper.Area(r)) for r in result)
-            area = total_area / (scale * scale)
-            return area if area > min_overlap else 0
+            total_area = sum(abs(get_polygon_area(p)) for p in result)
+            return total_area if total_area > min_overlap else 0
     except Exception:
         pass
     return 0
@@ -1074,9 +1064,6 @@ class TestDeepNestIntegration:
 
     def test_deepnest_basic_no_overlap(self, config):
         """Test DeepNest class directly with basic polygons."""
-        from deepnest.deepnest import DeepNest
-        from raygeo import Geometry
-
         nester = DeepNest(config)
 
         for i in range(5):
