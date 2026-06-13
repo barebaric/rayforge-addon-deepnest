@@ -12,7 +12,7 @@ Tests verify that:
 from pathlib import Path
 
 import pytest
-from raygeo import Geometry
+from raygeo.geo import Geometry
 from rayforge.core.matrix import Matrix
 from rayforge.core.stock import StockItem
 from rayforge.core.stock_asset import StockAsset

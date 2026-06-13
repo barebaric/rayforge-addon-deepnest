@@ -8,7 +8,7 @@ from typing import Union, List, cast
 
 import pytest
 import numpy as np
-from raygeo import Geometry
+from raygeo.geo import Geometry
 from raygeo.geo.shape.polygon import (
     get_polygon_area,
     get_polygons_group_intersection,
