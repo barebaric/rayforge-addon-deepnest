@@ -1,6 +1,6 @@
 from raygeo.geo.algo.clipping import to_clipper
 from raygeo.geo.types import Polygon
-from raygeo.nest import nfp as _nfp
+from raygeo.geo.algo.nest2d import nfp as _nfp
 from deepnest.deepnest.nfp import (
     no_fit_polygon,
     inner_fit_polygon,

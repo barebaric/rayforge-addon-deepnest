@@ -14,7 +14,7 @@ from typing import Dict, List, Tuple
 
 from raygeo.geo.shape.polygon import clean_polygon
 from raygeo.geo.types import Point, Polygon
-from raygeo.nest import ifp, nfp
+from raygeo.geo.algo.nest2d import ifp, nfp
 from .models import NestConfig
 
 logger = logging.getLogger(__name__)

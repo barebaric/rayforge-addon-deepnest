@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 
 from .models import NestConfig
 
-from raygeo.nest.genetic import GeneticAlgorithm as _RustGA
+from raygeo.geo.algo.nest2d.genetic import GeneticAlgorithm as _RustGA
 
 
 @dataclass

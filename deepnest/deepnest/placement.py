@@ -9,8 +9,8 @@ from raygeo.geo.shape.polygon import (
     point_in_polygon_numpy,
     translate_polygons_numpy,
 )
-from raygeo.nest import collision as _collision
-from raygeo.nest import placement as _placement
+from raygeo.geo.algo.nest2d import collision as _collision
+from raygeo.geo.algo.nest2d import placement as _placement
 from .models import NestConfig, Placement, SheetInfo
 
 logger = logging.getLogger(__name__)
