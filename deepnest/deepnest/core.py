@@ -7,7 +7,7 @@ from typing import List, Dict, Any, Optional, TYPE_CHECKING
 import numpy as np
 
 from raygeo.geo import Geometry
-from raygeo.geo.algo.simplify import simplify_polyline
+from raygeo.geo.algo.simplify import simplify_polyline_3d
 from raygeo.geo.types import Polygon
 from raygeo.geo.shape.polygon import (
     polygon_area_numpy,
@@ -74,7 +74,11 @@ def _simplify_polygon(polygon: Polygon, config: NestConfig) -> Polygon:
     # Reduces vertex count on complex curves before they enter the nesting
     # logic
     if config.simplify_tolerance > 0:
-        polygon = simplify_polyline(polygon, config.simplify_tolerance)
+        polygon_3d = [(x, y, 0.0) for x, y in polygon]
+        polygon_3d = simplify_polyline_3d(
+            polygon_3d, config.simplify_tolerance
+        )
+        polygon = [(x, y) for x, y, z in polygon_3d]
 
     # 2. Convex Hull Simplification (Optional / Aggressive)
     if config.simplify:
