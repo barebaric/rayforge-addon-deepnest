@@ -232,7 +232,7 @@ def validate_placements_no_overlap(
                 continue
             for poly1 in p1.polygons:
                 for poly2 in p2.polygons:
-                    if _collision.any_overlap(
+                    if _collision.does_any_overlap(
                         poly1.tolist(), [poly2.tolist()], min_overlap_area
                     ):
                         return False
