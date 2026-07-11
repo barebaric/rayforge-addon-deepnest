@@ -14,11 +14,10 @@ from typing import (
     TYPE_CHECKING,
 )
 
-from raygeo.geo import Geometry
+from raygeo.geo import Geometry, Matrix
 from rayforge.context import get_context
 from rayforge.core.group import Group
 from rayforge.core.item import DocItem
-from rayforge.core.matrix import Matrix
 from rayforge.core.stock import StockItem
 from rayforge.core.workpiece import WorkPiece
 from rayforge.machine.models.machine import Origin
@@ -590,7 +589,7 @@ class NestingLayoutStrategy(LayoutStrategy):
             # minimum lies at the exact coordinates of placement.x
             # and placement.y on the sheet.
             temp_geo = world_geo.copy()
-            temp_geo.transform((F @ R @ T_to_origin).to_4x4_numpy())
+            temp_geo.transform(F @ R @ T_to_origin)
             rot_min_x, rot_min_y, _, _ = temp_geo.rect()
 
             # 5. Translate so the minimum corner lands on the target placement
