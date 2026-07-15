@@ -4,17 +4,13 @@ Backend entry point for deepnest addon.
 Registers layout strategies with the main application.
 """
 
-import gettext
 import logging
-from pathlib import Path
+
+from gettext import gettext as _
 
 from rayforge.core.hooks import hookimpl
 from .deepnest.models import NestConfig
 from .nesting import NestingLayoutStrategy
-
-_localedir = Path(__file__).parent.parent / "locales"
-_t = gettext.translation("deepnest", localedir=_localedir, fallback=True)
-_ = _t.gettext
 
 ADDON_NAME = "deepnest"
 

@@ -4,11 +4,10 @@ Frontend entry point for deepnest addon.
 Registers actions with menu placement.
 """
 
-import gettext
 import logging
-from pathlib import Path
 from typing import Optional
 
+from gettext import gettext as _
 from gi.repository import Gio
 
 from rayforge.context import get_context
@@ -17,10 +16,6 @@ from rayforge.ui_gtk.action_registry import MenuPlacement, ToolbarPlacement
 from .deepnest.models import NestConfig
 from .dialog import NestingSettingsDialog
 from .worker import execute_nesting
-
-_localedir = Path(__file__).parent.parent / "locales"
-_t = gettext.translation("deepnest", localedir=_localedir, fallback=True)
-_ = _t.gettext
 
 ADDON_NAME = "deepnest"
 

@@ -2,20 +2,15 @@
 Dialog for configuring nesting layout settings.
 """
 
-import gettext
 import logging
-from pathlib import Path
 
+from gettext import gettext as _
 from gi.repository import Adw, Gtk
 
 from rayforge.ui_gtk.icons import get_icon
 from rayforge.ui_gtk.shared.patched_dialog_window import PatchedMessageDialog
 from rayforge.ui_gtk.shared.unit_spin_row import UnitSpinRowHelper
 from .deepnest.models import NestConfig
-
-_localedir = Path(__file__).parent.parent / "locales"
-_t = gettext.translation("deepnest", localedir=_localedir, fallback=True)
-_ = _t.gettext
 
 logger = logging.getLogger(__name__)
 
