@@ -39,10 +39,11 @@ def register_actions(action_registry):
             return
 
         machine = get_context().machine
-        if machine and machine.heads:
-            default_spacing = machine.heads[0].spot_size_mm[0]
-        else:
-            default_spacing = 0.1
+        default_spacing = 0.1
+        if machine:
+            laser_head = machine.get_default_laser_head()
+            if laser_head is not None:
+                default_spacing = laser_head.spot_size_mm[0]
 
         if _session_config is not None:
             initial_spacing = _session_config.spacing
