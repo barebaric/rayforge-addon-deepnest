@@ -79,7 +79,6 @@ class NestingSettingsDialog(PatchedMessageDialog):
         )
         self.spacing_row = Adw.SpinRow(
             title=_("Spacing"),
-            subtitle=_("Distance between nested shapes"),
             adjustment=spacing_adj,
             digits=2,
         )
@@ -89,6 +88,7 @@ class NestingSettingsDialog(PatchedMessageDialog):
             spin_row=self.spacing_row,
             quantity="length",
             max_value_in_base=50.0,
+            subtitle_format=_("Distance between nested shapes ({unit})"),
         )
         self.spacing_helper.set_value_in_base_units(initial_spacing)
 
