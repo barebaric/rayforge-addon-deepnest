@@ -9,7 +9,7 @@ from gi.repository import Adw, Gtk
 
 from rayforge.ui_gtk.icons import get_icon
 from rayforge.ui_gtk.shared.patched_dialog_window import PatchedMessageDialog
-from rayforge.ui_gtk.shared.unit_spin_row import UnitSpinRowHelper
+from rayforge.ui_gtk.shared.unit_spin_row import LengthSpinRow
 from .deepnest.models import NestConfig
 
 logger = logging.getLogger(__name__)
@@ -71,26 +71,14 @@ class NestingSettingsDialog(PatchedMessageDialog):
 
         group = Adw.PreferencesGroup()
 
-        spacing_adj = Gtk.Adjustment(
-            lower=0.0,
+        self.spacing_row = LengthSpinRow(
+            _("Spacing"),
+            _("Distance between nested shapes"),
             upper=50.0,
-            step_increment=0.1,
-            page_increment=1.0,
-        )
-        self.spacing_row = Adw.SpinRow(
-            title=_("Spacing"),
-            adjustment=spacing_adj,
-            digits=2,
+            max_value_in_base=50.0,
+            value_in_base=initial_spacing,
         )
         group.add(self.spacing_row)
-
-        self.spacing_helper = UnitSpinRowHelper(
-            spin_row=self.spacing_row,
-            quantity="length",
-            max_value_in_base=50.0,
-            subtitle_format=_("Distance between nested shapes ({unit})"),
-        )
-        self.spacing_helper.set_value_in_base_units(initial_spacing)
 
         self.constrain_rotation_row = Adw.SwitchRow(
             title=_("Constrain Rotation"),
@@ -118,7 +106,7 @@ class NestingSettingsDialog(PatchedMessageDialog):
         self.set_extra_child(main_box)
 
     def get_spacing(self) -> float:
-        value = self.spacing_helper.get_value_in_base_units()
+        value = self.spacing_row.get_value_in_base_units()
         logger.debug("get_spacing: helper returned %.3f", value)
         return value
 
