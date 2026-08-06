@@ -4,8 +4,8 @@ Tests for deepnest worker functions.
 
 from unittest.mock import MagicMock, patch
 
-from deepnest.worker import execute_nesting
 from deepnest.deepnest.models import NestConfig
+from deepnest.worker import execute_nesting
 
 
 class TestExecuteNesting:

@@ -2,18 +2,17 @@
 Tests for multi-sheet nesting functionality.
 """
 
-import pytest
 import numpy as np
-
+import pytest
+from deepnest.deepnest.core import DeepNest
 from deepnest.deepnest.models import (
     NestConfig,
     SheetInfo,
 )
-from deepnest.deepnest.core import DeepNest
 from deepnest.deepnest.placement import (
-    place_parts,
-    layout_sheets_horizontal,
     get_sheet_at_position,
+    layout_sheets_horizontal,
+    place_parts,
 )
 
 

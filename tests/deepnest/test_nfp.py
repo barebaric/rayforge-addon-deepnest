@@ -1,11 +1,11 @@
-from raygeo.geo.algo.clipping import to_clipper
-from raygeo.geo.types import Polygon
-from raygeo.geo.algo.nest2d import nfp as _nfp
-from deepnest.deepnest.nfp import (
-    no_fit_polygon,
-    inner_fit_polygon,
-)
 from deepnest.deepnest.models import NestConfig
+from deepnest.deepnest.nfp import (
+    inner_fit_polygon,
+    no_fit_polygon,
+)
+from raygeo.geo.algo.clipping import to_clipper
+from raygeo.geo.algo.nest2d import nfp as _nfp
+from raygeo.geo.types import Polygon
 
 
 class TestNoFitPolygon:

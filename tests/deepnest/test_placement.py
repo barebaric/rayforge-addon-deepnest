@@ -4,15 +4,10 @@ Tests for rayforge.shared.deepnest.placement module.
 
 from __future__ import annotations
 
-from typing import Union, List, cast
+from typing import List, Union, cast
 
-import pytest
 import numpy as np
-from raygeo.geo import Geometry
-from raygeo.geo.shape.polygon import (
-    get_polygon_area,
-    get_polygons_group_intersection,
-)
+import pytest
 from deepnest.deepnest import DeepNest
 from deepnest.deepnest.models import (
     NestConfig,
@@ -22,6 +17,11 @@ from deepnest.deepnest.models import (
 from deepnest.deepnest.placement import (
     NestResult,
     place_parts,
+)
+from raygeo.geo import Geometry
+from raygeo.geo.shape.polygon import (
+    get_polygon_area,
+    get_polygons_group_intersection,
 )
 
 

@@ -1,9 +1,9 @@
-from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
-
-from .models import NestConfig
+from typing import Any, Dict, List, Optional
 
 from raygeo.geo.algo.nest2d.genetic import GeneticAlgorithm as _RustGA
+
+from .models import NestConfig
 
 
 @dataclass

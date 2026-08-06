@@ -12,19 +12,19 @@ Tests verify that:
 from pathlib import Path
 
 import pytest
-from raygeo.geo import Geometry, Matrix
-from rayforge.core.stock import StockItem
-from rayforge.core.stock_asset import StockAsset
-from rayforge.core.doc import Doc
-from rayforge.core.workpiece import WorkPiece
-from rayforge.core.source_asset_segment import SourceAssetSegment
-from rayforge.core.source_asset import SourceAsset
-from rayforge.core.vectorization_spec import PassthroughSpec
-from rayforge.image import SVG_RENDERER
-
 from deepnest.deepnest import Placement
 from deepnest.deepnest.models import NestConfig
 from deepnest.nesting import NestingLayoutStrategy
+from raygeo.geo import Geometry, Matrix
+
+from rayforge.core.doc import Doc
+from rayforge.core.source_asset import SourceAsset
+from rayforge.core.source_asset_segment import SourceAssetSegment
+from rayforge.core.stock import StockItem
+from rayforge.core.stock_asset import StockAsset
+from rayforge.core.vectorization_spec import PassthroughSpec
+from rayforge.core.workpiece import WorkPiece
+from rayforge.image import SVG_RENDERER
 
 
 def _create_workpiece_with_geometry(

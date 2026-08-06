@@ -8,6 +8,7 @@ with their respective registries before tests run.
 from typing import cast
 
 import pytest
+
 from rayforge.doceditor.layout.registry import layout_registry
 
 
@@ -28,8 +29,8 @@ def register_deepnest():
     _addon_mgr to a sentinel, which prevents the property from
     creating a real AddonManager.
     """
-    from rayforge.context import get_context
     from rayforge.addon_mgr.addon_manager import AddonManager
+    from rayforge.context import get_context
 
     context = get_context()
     context._addon_mgr = cast(AddonManager, object())

@@ -12,9 +12,10 @@ import logging
 import threading
 from typing import Dict, List, Tuple
 
+from raygeo.geo.algo.nest2d import ifp, nfp
 from raygeo.geo.shape.polygon import clean_polygon
 from raygeo.geo.types import Point, Polygon
-from raygeo.geo.algo.nest2d import ifp, nfp
+
 from .models import NestConfig
 
 logger = logging.getLogger(__name__)

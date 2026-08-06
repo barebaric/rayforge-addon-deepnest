@@ -3,20 +3,21 @@ import logging
 import math
 import threading
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, TYPE_CHECKING
-import numpy as np
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+import numpy as np
 from raygeo.geo import Geometry
 from raygeo.geo.algo.simplify import simplify_polyline_3d
-from raygeo.geo.types import Polygon
 from raygeo.geo.shape.polygon import (
-    polygon_area_numpy,
-    polygon_bounds_numpy,
-    offset_polygon,
     clean_polygon,
     get_polygon_convex_hull,
     normalize_polygons,
+    offset_polygon,
+    polygon_area_numpy,
+    polygon_bounds_numpy,
 )
+from raygeo.geo.types import Polygon
+
 from .genetic import GeneticAlgorithm
 from .models import (
     NestConfig,
@@ -25,15 +26,15 @@ from .models import (
     SheetInfo,
     WorkpieceInfo,
 )
+from .nfp import clear_nfp_cache
 from .placement import (
     NestResult,
     place_parts,
 )
-from .nfp import clear_nfp_cache
 
 if TYPE_CHECKING:
-    from rayforge.shared.tasker.manager import TaskManager
     from rayforge.shared.tasker.context import ExecutionContext
+    from rayforge.shared.tasker.manager import TaskManager
 
 logger = logging.getLogger(__name__)
 

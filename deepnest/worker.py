@@ -5,10 +5,10 @@ Registers layout strategies with the main application.
 """
 
 import logging
-
 from gettext import gettext as _
 
 from rayforge.core.hooks import hookimpl
+
 from .deepnest.models import NestConfig
 from .nesting import NestingLayoutStrategy
 

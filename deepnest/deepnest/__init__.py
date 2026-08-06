@@ -5,6 +5,7 @@ This builtin addon provides the nesting layout strategy for optimal
 arrangement of workpieces using the deepnest algorithm.
 """
 
+from .core import DeepNest
 from .models import (
     NestConfig,
     NestSolution,
@@ -12,7 +13,6 @@ from .models import (
     SheetInfo,
     WorkpieceInfo,
 )
-from .core import DeepNest
 
 __all__ = [
     "DeepNest",

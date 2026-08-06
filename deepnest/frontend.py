@@ -5,14 +5,15 @@ Registers actions with menu placement.
 """
 
 import logging
+from gettext import gettext as _
 from typing import Optional
 
-from gettext import gettext as _
 from gi.repository import Gio
 
 from rayforge.context import get_context
 from rayforge.core.hooks import hookimpl
 from rayforge.ui_gtk.action_registry import MenuPlacement, ToolbarPlacement
+
 from .deepnest.models import NestConfig
 from .dialog import NestingSettingsDialog
 from .worker import execute_nesting

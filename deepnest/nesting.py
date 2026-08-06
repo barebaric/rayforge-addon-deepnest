@@ -7,21 +7,23 @@ from __future__ import annotations
 import logging
 import os
 from typing import (
+    TYPE_CHECKING,
     Dict,
     List,
     Optional,
     Sequence,
-    TYPE_CHECKING,
 )
 
 from raygeo.geo import Geometry, Matrix
+
 from rayforge.context import get_context
 from rayforge.core.group import Group
 from rayforge.core.item import DocItem
 from rayforge.core.stock import StockItem
 from rayforge.core.workpiece import WorkPiece
-from rayforge.machine.models.machine import Origin
 from rayforge.doceditor.layout.base import LayoutStrategy
+from rayforge.machine.models.machine import Origin
+
 from .deepnest.core import DeepNest
 from .deepnest.models import (
     NestConfig,

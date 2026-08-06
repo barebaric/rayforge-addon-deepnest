@@ -3,8 +3,8 @@ Dialog for configuring nesting layout settings.
 """
 
 import logging
-
 from gettext import gettext as _
+
 from gi.repository import Adw, Gtk
 
 from rayforge.ui_gtk.icons import get_icon

@@ -3,9 +3,8 @@ Tests for rayforge.shared.deepnest.genetic module.
 """
 
 import pytest
-
-from deepnest.deepnest.models import NestConfig
 from deepnest.deepnest.genetic import GeneticAlgorithm
+from deepnest.deepnest.models import NestConfig
 
 
 def P(*points):

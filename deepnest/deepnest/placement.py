@@ -1,16 +1,17 @@
 import logging
-from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
-import numpy as np
+from typing import Any, Dict, List, Optional
 
-from raygeo.geo.shape.polygon import (
-    polygon_area_numpy,
-    polygon_bounds_numpy,
-    point_in_polygon_numpy,
-    translate_polygons_numpy,
-)
+import numpy as np
 from raygeo.geo.algo.nest2d import collision as _collision
 from raygeo.geo.algo.nest2d import placement as _placement
+from raygeo.geo.shape.polygon import (
+    point_in_polygon_numpy,
+    polygon_area_numpy,
+    polygon_bounds_numpy,
+    translate_polygons_numpy,
+)
+
 from .models import NestConfig, Placement, SheetInfo
 
 logger = logging.getLogger(__name__)
