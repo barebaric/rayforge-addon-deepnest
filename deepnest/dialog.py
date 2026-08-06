@@ -9,7 +9,8 @@ from gi.repository import Adw, Gtk
 
 from rayforge.ui_gtk.icons import get_icon
 from rayforge.ui_gtk.shared.patched_dialog_window import PatchedMessageDialog
-from rayforge.ui_gtk.shared.unit_spin_row import LengthSpinRow
+from rayforge.ui_gtk.shared.pref_rows.length_spin_row import LengthSpinRow
+
 from .deepnest.models import NestConfig
 
 logger = logging.getLogger(__name__)
