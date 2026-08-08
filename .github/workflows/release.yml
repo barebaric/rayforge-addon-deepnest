@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Send repository_dispatch event
-        uses: peter-evans/repository-dispatch@v2
+        uses: peter-evans/repository-dispatch@v4
         with:
           # The central registry repository that will receive the announcement.
           repository: barebaric/rayforge-registry
