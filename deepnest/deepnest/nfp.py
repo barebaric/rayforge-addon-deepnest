@@ -10,7 +10,6 @@ Reference: minkowski.cc from Deepnest project
 
 import logging
 import threading
-from typing import Dict, List, Tuple
 
 from raygeo.geo.algo.nest2d import ifp, nfp
 from raygeo.geo.shape.polygon import clean_polygon
@@ -26,13 +25,13 @@ logger = logging.getLogger(__name__)
 MAX_CACHE_SIZE = 2000
 
 _cache_lock = threading.Lock()
-_NFP_CACHE: Dict[
-    Tuple[Tuple[Point, ...], Tuple[Point, ...]],
-    List[Polygon],
+_NFP_CACHE: dict[
+    tuple[tuple[Point, ...], tuple[Point, ...]],
+    list[Polygon],
 ] = {}
-_IFP_CACHE: Dict[
-    Tuple[Tuple[Point, ...], Tuple[Point, ...]],
-    List[Polygon],
+_IFP_CACHE: dict[
+    tuple[tuple[Point, ...], tuple[Point, ...]],
+    list[Polygon],
 ] = {}
 
 
@@ -43,7 +42,7 @@ def clear_nfp_cache():
         _IFP_CACHE.clear()
 
 
-def _manage_cache_size(cache: Dict):
+def _manage_cache_size(cache: dict):
     """Enforce hard limit on cache size to prevent infinite growth."""
     if len(cache) > MAX_CACHE_SIZE:
         cache.clear()
@@ -51,7 +50,7 @@ def _manage_cache_size(cache: Dict):
 
 def no_fit_polygon(
     static: Polygon, orbiting: Polygon, inside: bool, config: NestConfig
-) -> List[Polygon]:
+) -> list[Polygon]:
     """
     Calculate the No-Fit Polygon (NFP) for two polygons with Caching.
     """
@@ -99,7 +98,7 @@ def no_fit_polygon(
 
 def inner_fit_polygon(
     bin_polygon: Polygon, part_polygon: Polygon, config: NestConfig
-) -> List[Polygon]:
+) -> list[Polygon]:
     """
     Calculate the Inner Fit Polygon (IFP) for placing a part inside a bin.
     """

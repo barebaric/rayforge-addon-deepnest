@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -52,14 +52,14 @@ class NestConfig:
 @dataclass
 class WorkpieceInfo:
     uid: str
-    polygons: List[np.ndarray]
+    polygons: list[np.ndarray]
     source: int
     quantity: int = 1
     is_sheet: bool = False
     offset_x: float = 0.0
     offset_y: float = 0.0
     # Pre-computed convex hulls for hierarchical collision detection
-    hulls: List[np.ndarray] = field(default_factory=list)
+    hulls: list[np.ndarray] = field(default_factory=list)
 
 
 @dataclass
@@ -80,15 +80,15 @@ class Placement:
     x: float
     y: float
     rotation: float
-    polygons: List[np.ndarray]
+    polygons: list[np.ndarray]
     sheet_uid: Optional[str] = None
     flip_h: bool = False
     flip_v: bool = False
-    hulls: List[np.ndarray] = field(default_factory=list)
+    hulls: list[np.ndarray] = field(default_factory=list)
 
 
 @dataclass
 class NestSolution:
-    placements: List[Dict[str, Any]]
+    placements: list[dict[str, Any]]
     fitness: float
     area_used: float

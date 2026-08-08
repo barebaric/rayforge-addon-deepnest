@@ -4,7 +4,7 @@ Tests for rayforge.shared.deepnest.placement module.
 
 from __future__ import annotations
 
-from typing import List, Union, cast
+from typing import Union, cast
 
 import numpy as np
 import pytest
@@ -35,7 +35,7 @@ def SI(polygon: np.ndarray, uid: str = "sheet") -> SheetInfo:
     return SheetInfo(uid=uid, polygon=polygon)
 
 
-def make_sheets(*polygons: np.ndarray) -> List[SheetInfo]:
+def make_sheets(*polygons: np.ndarray) -> list[SheetInfo]:
     """Helper to create a list of SheetInfo from polygons."""
     return [
         SheetInfo(uid=f"sheet-{i}", polygon=p) for i, p in enumerate(polygons)
@@ -44,9 +44,9 @@ def make_sheets(*polygons: np.ndarray) -> List[SheetInfo]:
 
 def as_sheets(
     sheets_like: Union[
-        SheetInfo, List[SheetInfo], List[np.ndarray], np.ndarray
+        SheetInfo, list[SheetInfo], list[np.ndarray], np.ndarray
     ],
-) -> List[SheetInfo]:
+) -> list[SheetInfo]:
     """Convert a polygon or list of polygons to SheetInfo list."""
     if isinstance(sheets_like, SheetInfo):
         return [sheets_like]
@@ -57,9 +57,9 @@ def as_sheets(
             return []
         first = sheets_like[0]
         if isinstance(first, SheetInfo):
-            return cast(List[SheetInfo], sheets_like)
+            return cast(list[SheetInfo], sheets_like)
         if isinstance(first, np.ndarray):
-            polygons = cast(List[np.ndarray], sheets_like)
+            polygons = cast(list[np.ndarray], sheets_like)
             return [
                 SheetInfo(uid=f"sheet-{i}", polygon=s)
                 for i, s in enumerate(polygons)

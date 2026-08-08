@@ -1,6 +1,6 @@
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import numpy as np
 from raygeo.geo.algo.nest2d import collision as _collision
@@ -21,16 +21,16 @@ NumpyPolygon = np.ndarray
 
 @dataclass
 class NestResult:
-    placements: List[Placement]
+    placements: list[Placement]
     fitness: float
     area_used: float
     sheet_index: int = 0
 
 
 def layout_sheets_horizontal(
-    sheets: List[SheetInfo],
+    sheets: list[SheetInfo],
     spacing: float = 0.0,
-) -> List[SheetInfo]:
+) -> list[SheetInfo]:
     """Arrange sheets horizontally in unified world space.
 
     If sheets already have non-zero offsets (from document positions),
@@ -54,7 +54,7 @@ def layout_sheets_horizontal(
 def get_sheet_at_position(
     x: float,
     y: float,
-    sheets: List[SheetInfo],
+    sheets: list[SheetInfo],
 ) -> Optional[SheetInfo]:
     """Find which sheet contains the given position."""
     for sheet in sheets:
@@ -67,13 +67,13 @@ def get_sheet_at_position(
 
 
 def place_parts(
-    parts: List[Dict[str, Any]],
-    sheets: List[SheetInfo],
-    rotations: List[float],
+    parts: list[dict[str, Any]],
+    sheets: list[SheetInfo],
+    rotations: list[float],
     config: NestConfig,
     sheet_spacing: float = 0.0,
-    flips_h: Optional[List[bool]] = None,
-    flips_v: Optional[List[bool]] = None,
+    flips_h: Optional[list[bool]] = None,
+    flips_v: Optional[list[bool]] = None,
 ) -> Optional[NestResult]:
     """
     Place parts using the Rust nesting engine.
@@ -158,7 +158,7 @@ def place_parts(
 
     # Collect all placements across sheets and convert to Python objects
     sheet_uid_map = {i: sheet.uid for i, sheet in enumerate(sheets)}
-    all_placements: List[Placement] = []
+    all_placements: list[Placement] = []
 
     for sheet_result in rust_results:
         sheet_uid = sheet_uid_map.get(sheet_result["sheet_index"], "unknown")
@@ -216,7 +216,7 @@ def place_parts(
 
 
 def validate_placements_no_overlap(
-    placements: List[Placement],
+    placements: list[Placement],
     min_overlap_area: float = 100,
 ) -> bool:
     """

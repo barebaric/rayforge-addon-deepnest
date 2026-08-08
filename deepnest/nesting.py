@@ -6,12 +6,10 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Sequence
 from typing import (
     TYPE_CHECKING,
-    Dict,
-    List,
     Optional,
-    Sequence,
 )
 
 from raygeo.geo import Geometry, Matrix
@@ -64,7 +62,7 @@ class NestingLayoutStrategy(LayoutStrategy):
 
     def calculate_deltas(
         self, context: Optional[ExecutionContext] = None
-    ) -> Dict[DocItem, Matrix]:
+    ) -> dict[DocItem, Matrix]:
         if not self.items:
             return {}
 
@@ -144,7 +142,7 @@ class NestingLayoutStrategy(LayoutStrategy):
         if not solution:
             logger.warning("Nesting failed to find a solution.")
             self.unplaced_items = list(workpieces)
-            deltas: Dict[DocItem, Matrix] = {}
+            deltas: dict[DocItem, Matrix] = {}
             self._handle_unplaced_items(deltas)
             return deltas
 
@@ -156,7 +154,7 @@ class NestingLayoutStrategy(LayoutStrategy):
         if not self._is_solution_better_than_initial(
             solution, workpieces, initial_area, initially_on_stock
         ):
-            deltas: Dict[DocItem, Matrix] = {}
+            deltas: dict[DocItem, Matrix] = {}
             if self.unplaced_items:
                 logger.warning(
                     "%d workpiece(s) could not be placed",
@@ -188,7 +186,7 @@ class NestingLayoutStrategy(LayoutStrategy):
         self,
         context: Optional[ExecutionContext] = None,
         task_manager: "Optional[TaskManager]" = None,
-    ) -> Dict[DocItem, Matrix]:
+    ) -> dict[DocItem, Matrix]:
         if task_manager is None:
             raise ValueError("task_manager is required for async nesting")
         if not self.items:
@@ -272,7 +270,7 @@ class NestingLayoutStrategy(LayoutStrategy):
         if not solution:
             logger.warning("Nesting found no solution")
             self.unplaced_items = list(workpieces)
-            deltas: Dict[DocItem, Matrix] = {}
+            deltas: dict[DocItem, Matrix] = {}
             self._handle_unplaced_items(deltas)
             return deltas
 
@@ -284,7 +282,7 @@ class NestingLayoutStrategy(LayoutStrategy):
         if not self._is_solution_better_than_initial(
             solution, workpieces, initial_area, initially_on_stock
         ):
-            deltas: Dict[DocItem, Matrix] = {}
+            deltas: dict[DocItem, Matrix] = {}
             if self.unplaced_items:
                 logger.warning(
                     "%d workpiece(s) could not be placed",
@@ -312,7 +310,7 @@ class NestingLayoutStrategy(LayoutStrategy):
         logger.info("Nesting layout complete.")
         return deltas
 
-    def _extract_placements(self, solution: NestSolution) -> List[Placement]:
+    def _extract_placements(self, solution: NestSolution) -> list[Placement]:
         placements = []
         for p in solution.placements:
             placements.append(
@@ -492,7 +490,7 @@ class NestingLayoutStrategy(LayoutStrategy):
 
         return geo
 
-    def _get_stock_polygons(self) -> List[tuple[Geometry, str]]:
+    def _get_stock_polygons(self) -> list[tuple[Geometry, str]]:
         """
         Returns a list of (geometry, uid) tuples for all stock items.
         """
@@ -551,10 +549,10 @@ class NestingLayoutStrategy(LayoutStrategy):
 
     def _compute_deltas_from_placements(
         self,
-        placements: List[Placement],
-        workpieces: List[WorkPiece],
-    ) -> Dict[DocItem, Matrix]:
-        deltas: Dict[DocItem, Matrix] = {}
+        placements: list[Placement],
+        workpieces: list[WorkPiece],
+    ) -> dict[DocItem, Matrix]:
+        deltas: dict[DocItem, Matrix] = {}
         workpiece_map = {wp.uid: wp for wp in workpieces}
 
         for placement in placements:
@@ -626,7 +624,7 @@ class NestingLayoutStrategy(LayoutStrategy):
 
         return deltas
 
-    def _handle_unplaced_items(self, deltas: Dict[DocItem, Matrix]) -> None:
+    def _handle_unplaced_items(self, deltas: dict[DocItem, Matrix]) -> None:
         sheets = self._get_stock_polygons()
         if not sheets:
             return

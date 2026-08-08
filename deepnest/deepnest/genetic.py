@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from raygeo.geo.algo.nest2d.genetic import GeneticAlgorithm as _RustGA
 
@@ -8,16 +8,16 @@ from .models import NestConfig
 
 @dataclass
 class _Individual:
-    placement: List[Dict[str, Any]] = field(default_factory=list)
-    rotation: List[float] = field(default_factory=list)
-    flip_h: List[bool] = field(default_factory=list)
-    flip_v: List[bool] = field(default_factory=list)
+    placement: list[dict[str, Any]] = field(default_factory=list)
+    rotation: list[float] = field(default_factory=list)
+    flip_h: list[bool] = field(default_factory=list)
+    flip_v: list[bool] = field(default_factory=list)
     fitness: Optional[float] = None
     processing: bool = False
 
 
 class GeneticAlgorithm:
-    def __init__(self, adam: List[Dict[str, Any]], config: NestConfig):
+    def __init__(self, adam: list[dict[str, Any]], config: NestConfig):
         self.config = config
 
         # Derive population size (matches original logic)
@@ -39,7 +39,7 @@ class GeneticAlgorithm:
             },
         )
 
-        self.population: List[_Individual] = []
+        self.population: list[_Individual] = []
         for i in range(len(self._ga)):
             rotations, flips_h, flips_v, fitness = self._ga.get_individual(i)
             self.population.append(

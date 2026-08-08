@@ -3,7 +3,7 @@ import logging
 import math
 import threading
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import numpy as np
 from raygeo.geo import Geometry
@@ -41,13 +41,13 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class _AsyncNestingState:
-    best_placements: List[Placement] = field(default_factory=list)
+    best_placements: list[Placement] = field(default_factory=list)
     best_fitness: float = float("inf")
     generations_without_improvement: int = 0
-    pending_tasks: Dict[str, int] = field(default_factory=dict)
+    pending_tasks: dict[str, int] = field(default_factory=dict)
     generation: int = 0
     done: bool = False
-    results: List[tuple[str, int, Optional[NestResult]]] = field(
+    results: list[tuple[str, int, Optional[NestResult]]] = field(
         default_factory=list
     )
     lock: threading.Lock = field(default_factory=threading.Lock)
@@ -56,12 +56,12 @@ class _AsyncNestingState:
 
 def _place_parts_worker(
     context,
-    parts: List[Dict[str, Any]],
-    sheets: List[SheetInfo],
-    rotations: List[float],
+    parts: list[dict[str, Any]],
+    sheets: list[SheetInfo],
+    rotations: list[float],
     config: NestConfig,
-    flips_h: Optional[List[bool]] = None,
-    flips_v: Optional[List[bool]] = None,
+    flips_h: Optional[list[bool]] = None,
+    flips_v: Optional[list[bool]] = None,
 ) -> Optional[NestResult]:
     return place_parts(
         parts, sheets, rotations, config, flips_h=flips_h, flips_v=flips_v
@@ -104,10 +104,10 @@ def _simplify_polygon(polygon: Polygon, config: NestConfig) -> Polygon:
 class DeepNest:
     def __init__(self, config: Optional[NestConfig] = None):
         self.config = config or NestConfig()
-        self._workpieces: List[WorkpieceInfo] = []
-        self._sheets: List[WorkpieceInfo] = []
+        self._workpieces: list[WorkpieceInfo] = []
+        self._sheets: list[WorkpieceInfo] = []
         self._ga: Optional[GeneticAlgorithm] = None
-        self._nests: List[NestSolution] = []
+        self._nests: list[NestSolution] = []
         self._working = False
         self._cancelled = False
 
@@ -678,7 +678,7 @@ class DeepNest:
         self._cancelled = True
         self._working = False
 
-    def _prepare_parts(self) -> List[Dict[str, Any]]:
+    def _prepare_parts(self) -> list[dict[str, Any]]:
         parts = []
 
         for wp in self._workpieces:
