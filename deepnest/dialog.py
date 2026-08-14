@@ -76,7 +76,6 @@ class NestingSettingsDialog(PatchedMessageDialog):
             _("Spacing"),
             _("Distance between nested shapes"),
             upper=50.0,
-            max_value_in_base=50.0,
             value_in_base=initial_spacing,
         )
         group.add(self.spacing_row)
