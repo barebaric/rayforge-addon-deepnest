@@ -1,0 +1,79 @@
+# Hindi translations for Rayforge.
+# Copyright (C) 2026 The Rayforge Project
+# This file is distributed under the same license as the Rayforge package.
+# Samuel Abels <knipknap@gmail.com>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Rayforge\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-04-20 14:59+0200\n"
+"PO-Revision-Date: 2026-09-27 22:58\n"
+"Last-Translator: Samuel Abels <knipknap@gmail.com>\n"
+"Language-Team: none\n"
+"Language: hi\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: deepnest/worker.py
+msgid "Nesting Layout"
+msgstr "नेस्टिंग लेआउट"
+
+#: deepnest/dialog.py
+msgid "Nesting Layout Settings"
+msgstr "नेस्टिंग लेआउट सेटिंग्स"
+
+#: deepnest/dialog.py
+msgid "Cancel"
+msgstr "रद्द करें"
+
+#: deepnest/dialog.py
+msgid "Start Nesting"
+msgstr "नेस्टिंग शुरू करें"
+
+#: deepnest/dialog.py
+msgid ""
+"Nesting can consume significant memory and take a long time depending on the "
+"number and complexity of shapes. It is recommended to start with a small "
+"number of shapes before scaling up."
+msgstr ""
+"आकृतियों की संख्या और जटिलता के अनुसार नेस्टिंग महत्वपूर्ण मेमोरी खपत कर सकती है और लंबा "
+"समय ले सकती है. बढ़ाने से पहले थोड़ी संख्या में आकृतियों से शुरू करने की अनुशंसा की जाती है."
+
+#: deepnest/dialog.py
+msgid "Spacing"
+msgstr "स्पेसिंग"
+
+#: deepnest/dialog.py
+msgid "Distance between nested shapes"
+msgstr "नेस्ट की गई आकृतियों के बीच दूरी"
+
+#: deepnest/dialog.py
+msgid "Constrain Rotation"
+msgstr "घूर्णन सीमित करें"
+
+#: deepnest/dialog.py
+msgid "Keep parts in their original orientation"
+msgstr "पार्टों को उनकी मूल अभिविन्यास में रखें"
+
+#: deepnest/dialog.py
+msgid "Allow Horizontal Flip"
+msgstr "क्षैतिज पलटने की अनुमति दें"
+
+#: deepnest/dialog.py
+msgid "Mirror parts horizontally for better fit"
+msgstr "बेहतर फ़िट के लिए पार्टों को क्षैतिज मिरर करें"
+
+#: deepnest/dialog.py
+msgid "Allow Vertical Flip"
+msgstr "लंबवत पलटने की अनुमति दें"
+
+#: deepnest/dialog.py
+msgid "Mirror parts vertically for better fit"
+msgstr "बेहतर फ़िट के लिए पार्टों को लंबवत मिरर करें"
+
+#: deepnest/frontend.py
+msgid "Auto Layout (Nesting)"
+msgstr "स्वतः लेआउट (नेस्टिंग)"
