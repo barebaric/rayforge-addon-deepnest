@@ -46,6 +46,8 @@ class NestingLayoutStrategy(LayoutStrategy):
     of workpieces on the available stock or work area in a unified world space.
     """
 
+    slug = "nesting-layout"
+
     def __init__(
         self,
         items: Sequence[DocItem],
