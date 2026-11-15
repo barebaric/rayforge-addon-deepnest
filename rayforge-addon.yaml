@@ -1,6 +1,19 @@
 name: deepnest
 display_name: "Deepnest"
 description: "Nesting layout functionality using deepnest algorithm"
+long_description: |
+  Deepnest automatically arranges your workpieces into a compact
+  layout on your stock material or machine work area.
+
+  - Uses a genetic algorithm to find an efficient packing of shapes
+  - Minimizes waste and fits more parts onto each sheet
+  - Configurable spacing, rotation, and nesting options
+
+  Select workpieces, then run it from the **Arrange** menu or with
+  **Ctrl+Alt+N**.
+screenshots:
+  - media/screenshot.webp
+url: "https://github.com/barebaric/rayforge-addon-deepnest"
 api_version: 19
 author:
   name: "Samuel Abels"
